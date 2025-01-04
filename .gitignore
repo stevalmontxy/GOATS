@@ -1,5 +1,7 @@
-### This is the default gitignore for python repos, except for the added .csv (lots of large options data files)
+### This is the default gitignore for python repos, except for the added .csv and .txt (lots of large options data files)
 *.csv
+*.txt
+mysecrets.py
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
