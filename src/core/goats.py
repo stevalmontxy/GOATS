@@ -59,7 +59,7 @@ class SentimentV1:
         # find closest expr
         # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
         option = Option(strike, expr, side)
-        Portfolio.openPosition(port, ti me, qty, option)
+        Portfolio.openPosition(port, time, qty, option)
 
     @staticmethod
     def orderMakerLive(time, strikeDist, exprDist, side, qty):
@@ -70,7 +70,7 @@ class SentimentV1:
         # find closest expr
         # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
         option = Option(strike, expr, side)
-        Portfolio.openPosition(port, ti me, qty, option)
+        Portfolio.openPosition(port, time, qty, option)
 
 
     def __repr__(self):
