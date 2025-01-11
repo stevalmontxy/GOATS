@@ -1,90 +1,8 @@
 from datetime import datetime, timedelta
+import datetime as dt
 import numpy as np
 import pandas as pd
-
-class SentimentV1:
-    '''
-    here i hold the values for vol and bias beliefs
-    they are calculated using methods (or functions?)
-    '''
-    # elsewhere, an f will be defined, but that is a strategy parameter, not a sentiment parameter
-    def __init__(self, timesteps):
-        self.vol = [.5] * (timesteps+1) # volatility; value from 0 to 1, 0 being absolutely no belief in motion(100% sideways), 1 being expecting huge move
-        self.dir = [.5] * (timesteps+1) # direction; value from 0 to 1, .5 being even, 1, being fully upside
-        # a .5 dir doesn't mean a belief in sideways market, it means a neutral belief in terms of direction. vol decides how sideways
-
-    # def calcVol(self, t, data) -> None: 
-    #     '''
-    #     - `vol` = f(previous day move size, significant events, card count, TA, time since last big move)
-    #     - if vol belief has multiple dimensions, maybe that can be factored in for ideal position DTE
-    #     '''
-    #     self.vol[t] =  .6
-        
-    # def calcDir(self, t, data):
-    def calcSentiment(self, t, data):
-        '''
-         - `dir` = f(previous day move size+direction, static bias, mean reversion, card count, TA)
-         '''
-        self.vol[t] =  .6
-        self.dir[t] =  .6
-
-    @staticmethod
-    def sentiment2order1(vol, dir):
-        conditions = [
-            (0.3, 0.2, lambda: SentimentV1.orderMaker('1itmcall', '2atmput')), #vol: 0-.3, dir: 0-.2
-            (0.3, 0.8, lambda: SentimentV1.orderMaker('1atmcall', '1atmput')), # vol: 0-.3, dir: .2-.8
-            (0.3, 1.0, lambda: SentimentV1.orderMaker('2atncall', '1itmput')),
-            (0.7, 0.15, lambda: SentimentV1.orderMaker('1atmcall', '1otmcall+2atmcall')), # vol: .3-.7, dir: 0-.15
-            (0.7, 0.4, lambda: SentimentV1.orderMaker('1atmcall', '2atmput')), # vol: .3-.7, dir: 0-.4
-            (0.7, 0.6, lambda: SentimentV1.orderMaker('1itmcall', '1itmput')),
-            (0.7, 0.85, lambda: SentimentV1.orderMaker('2atmcall', '1atmput')),
-            (0.7, 1.0, lambda: SentimentV1.orderMaker('1OTMcall+2atmcall', '1atmput')),
-            (1.0, 0.25, lambda: SentimentV1.orderMaker('2atmcall', '2otmput+1atmput')), 
-            (1.0, 0.75, lambda: SentimentV1.orderMaker('2ATMcall', '2atmput')),
-            (1.0, 1.0, lambda: SentimentV1.orderMaker('2otmcall+1atmcall', '2atmput')), # vol: .7-1, dir: .75-1
-        ]
-        '''strike, expr, side, qty
-           strike(distance), expr(distance), side, qty '''
-        for vol_threshold, dir_threshold, action in conditions:
-            if vol < vol_threshold and dir < dir_threshold:
-                action() # this calls the lambda func which calls the orderMaker method
-                # return
-
-    @staticmethod
-    def orderMakerBt(time, strikeDist, exprDist, side, qty):
-        underlyingLast = df["[UNDERLYING_LAST]"]
-        goalStrike = underlyingLast+strikeDist
-        goalExpr = time + timedelta(days=exprDist)
-        # find closest strike
-        # find closest expr
-        # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
-        option = Option(strike, expr, side)
-        Portfolio.openPosition(port, time, qty, option)
-
-    @staticmethod
-    def orderMakerLive(time, strikeDist, exprDist, side, qty):
-        underlyingLast = df["[UNDERLYING_LAST]"]
-        goalStrike = underlyingLast+strikeDist
-        goalExpr = time + timedelta(days=exprDist)
-        # find closest strike
-        # find closest expr
-        # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
-        option = Option(strike, expr, side)
-        Portfolio.openPosition(port, time, qty, option)
-
-
-    def __repr__(self):
-        # Format summary statistics or show partial data for readability.
-        vol_summary = f"First 5 values: {self.vol[:5]}" if len(self.vol) > 5 else f"Values: {self.vol}"
-        dir_summary = f"First 5 values: {self.dir[:5]}" if len(self.dir) > 5 else f"Values: {self.dir}"
-        
-        # Build the string representation.
-        return (
-            f"Sentiment Object:\n"
-            f"- Volatility Beliefs (vol): {vol_summary}\n"
-            f"- Directional Beliefs (dir): {dir_summary}\n"
-            f"- Total Time Steps: {len(self.vol)}"
-            )
+from sentiment_v1 import calcSentiment, sentiment2order, orderMakerBt, orderMakerLive
 
 
 class Position:
@@ -146,12 +64,10 @@ class Portfolio:
         self.positions[option.ID].delete #or whatever ~~~~~~~~~~~
         '''
         
-        
-        
+              
         
         FIGURE THIS OUT
-        
-        
+                
         
         
         '''
