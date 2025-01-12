@@ -2,8 +2,9 @@
 here are all the functions associated with sentiment. I am using the v1 so when I decide in the future
 to derive order sizing differently i can keep this original
 '''
-from goats import Position, Option, Portfolio, Strategy, Backtest
+# from goats import Position, Option, Portfolio, Strategy, Backtest
 from live_funcs import orderMakerLive
+from bt_funcs import orderMakerBt
 
 def calcSentiment(data, t=None):
     '''
@@ -46,24 +47,3 @@ def sentiment2order(vol, dir, latestPrice=None, time=None, backtest=True):
     for vol_threshold, dir_threshold, action in conditions:
         if vol < vol_threshold and dir < dir_threshold:
             action() # this calls the lambda func which calls the orderMaker method
-
-
-def orderMakerBt(orders, time=None):
-    """
-    THIS NEEDS TO BE MOVED TO BACKTEST SRC FOLDER
-    Orders: List of dictionaries, each containing strikeDist, exprDist, side, qty
-    Example:
-        orders = [
-            {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
-            {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1}
-        ]
-    """
-    pass
-        # underlyingLast = df["[UNDERLYING_LAST]"]
-        # goalStrike = underlyingLast+strikeDist
-        # goalExpr = time + timedelta(days=exprDist)
-        # # find closest strike
-        # # find closest expr
-        # # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
-        # option = Option(strike, expr, side)
-        # Portfolio.openPosition(port, time, qty, option)

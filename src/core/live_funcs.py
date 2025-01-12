@@ -1,24 +1,23 @@
+'''These are functions only relevant to live execution'''
+
 from mysecrets import FMP_KEY
 from datetime import date, datetime, timedelta
 import requests as rq
 import pandas as pd
 
 # import sys
-# print(sys.path, "HELLOOOOOO")
-# sys.path.append('../core')
-# print(sys.path)
-from goats import Position, Option, Portfolio, Strategy, Backtest
+from goats import Position, Option, Portfolio, Strategy
 # from sentiment_v1 import calcSentiment, sentiment2order
 
-        
+
 def createUnderlydf(symbol, dataInterval, dataPeriod): 
     '''
-    creates a simple dataframe of candlesticks (OHLC) of live stock data
+    Creates a simple dataframe of candlesticks (OHLC) of live stock data
     symbol: str
     dataInterval: str ('1hour')
     dataPeriod: int (number of days desired)'''
     today = datetime.today().strftime('%Y-%m-%d')
-    startDate = datetime.today() - timedelta(days=dataPeriod)  # Approximating 8 months as 30 days each
+    startDate = datetime.today() - timedelta(days=dataPeriod)
     startDateFormatted = startDate.strftime('%Y-%m-%d')
     url = f'https://financialmodelingprep.com/api/v3/historical-chart/{dataInterval}/{symbol}?from={startDateFormatted}&to={today}&apikey={FMP_KEY}'
     data = rq.get(url).json()
@@ -45,25 +44,16 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
 
 
 def orderMakerLive(orders, underlyingLast, time=None):
-    '''    Orders: List of dictionaries, each containing strikeDist, exprDist, side, qty
-    Example:
-        orders = [
-            {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
-            {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1}
-        ]
+    '''     orders: List of dictionaries, each containing strikeDist, exprDist, side, qty;
+            example:        orders = [
+                                {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
+                                {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1} ]
     '''
-        # goalStrike = underlyingLast+strikeDist
-        # goalExpr = time + timedelta(days=exprDist)
-        # # find closest strike
-        # # find closest expr
-        # # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
-        # option = Option(strike, expr, side)
-        # Portfolio.openPosition(port, time, qty, option)
     for order in orders:
-            goalStrike = underlyingLast + order['strikeDist']
-            goalExpr = datetime.today() + timedelta(days=order['exprDist'])
-            option = Option(goalStrike, goalExpr, order['side'])
-            # findClosestOption(option)
+        goalStrike = underlyingLast + order['strikeDist']
+        goalExpr = datetime.today() + timedelta(days=order['exprDist'])
+        option = Option(goalStrike, goalExpr, order['side'])
+        findClosestOption(option)
             
 
 import alpaca
@@ -82,7 +72,7 @@ option_data_client = OptionHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, se
 
 def findClosestOption(Option: Option):
     '''
-    finds the closest trading live option
+    finds live option that best matches desired strike and expiration
     Option: an object from the Option class'''
     min_expiration = Option.expr
     max_expiration = Option.expr + timedelta(days=5)
@@ -102,7 +92,6 @@ def findClosestOption(Option: Option):
                 break
         if o.expiration_date != Option.expr.date():
             Option.expr += timedelta(days=1)
-    # print(f' NEWgoalday:{Option.expr}')
 
     options_chain_list_reduced = optionsChainReq("SPY", Option.side, Option.expr, None, None,  min_strike, max_strike) # get only on correct day
     # find option closest to desired strike
@@ -160,5 +149,5 @@ def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiratio
         res = trade_client.get_option_contracts(req)
         options_chain_list.extend(res.option_contracts)
 
-    print(f"number of options retreived: {len(options_chain_list)}")
+    # print(f"number of options retreived: {len(options_chain_list)}")
     return options_chain_list

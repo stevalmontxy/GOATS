@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import datetime as dt
 import numpy as np
 import pandas as pd
-# from sentiment_v1 import calcSentiment, sentiment2order, orderMakerBt, orderMakerLive
+# from sentiment_v1 import calcSentiment, sentiment2order
 
 
 class Position:
@@ -28,8 +28,7 @@ class Option:
     def __init__(self, strike, expr, side, optID=0):
         self.strike = strike
         self.expr = expr if isinstance(expr, datetime) else datetime.strptime(expr, "%Y-%m-%d")
-        # self.expr = expr # expiration date (str, YYYY-MM-DD)
-        self.side = side # call or put
+        self.side = side
         self.ID = optID # optID is different from posID. referenced as either position.ID or option.ID
                         # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)
                         # for ex, the 5th option taken by script will have optID of 5, posID of 1, assuming the script holds two at a time, and sells in order
@@ -67,33 +66,14 @@ class Portfolio:
         self.positions[option.ID].delete #or whatever ~~~~~~~~~~~
         '''
         
-              
-        
-        FIGURE THIS OUT
-                
+                     
+        FIGURE THIS OUT    
         
         
         '''
         cash += 100*value
         self.trade_log.append(f"closed position ID: {option.ID} at time: {time} at ${value}")
         pass
-
-    def getOptionValue(self, expirDate, strike, side, time):#:datetime):
-        '''
-        expirDate- datetime
-        strike price- float
-        side- 'call' or 'put' (string)
-        time- datetime day+hr to check quote at
-        '''
-        print(type(time))
-        quoteDate = time.replace(hour=0, minute=0)
-        quoteTimeHour = time.hour + time.minute/60
-        dfSlice = df[(df["[QUOTE_DATE]"] == quoteDate) & (df["[STRIKE]"]==float(strike)) & (df["[EXPIRE_DATE]"]==expirDate) & (df["[QUOTE_TIME_HOURS]"]==quoteTimeHour) ] # gets a specific quote @ given time
-
-        if side == 'call':
-            return float(dfSlice.iloc[0]["[C_LAST]"])
-        else:  # for puts
-            return float(dfSlice.iloc[0]["[P_LAST]"])     
 
     @property
     def hasPositions(self):
@@ -107,8 +87,8 @@ class Portfolio:
 
 class Strategy:
     '''
-    sentiment is an object of the sentiment class. this way I can swap between sentimentv1 or sentimentv2 n stuff. MAYBE I SHOULD MAKE EACH ONE BE A SUBCLASS!!!!
-    f is a float
+    sentiment: object of the sentiment class. this way I can swap between sentimentv1 or sentimentv2 n stuff.
+    f: fraction of assets to trade (float)
     '''
     def __init__(self, Sentiment, f, morningSchedRun='10:00', closingSchedRun="15:30"):
         self.f = f
@@ -138,7 +118,7 @@ class Strategy:
             callqty = 1
             putqty=1
             '''
-            I will def want to put another func here to find the right positinos n stuff
+            I will def want to put another func here to find the right positions n stuff
             '''
             ID = 1
             ID2 = 2
@@ -151,7 +131,7 @@ class Strategy:
             self.firstDayInit(dateCurrent, optionsdf, underlydf, portfolio)
 
     def closingScript(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''script that executes near close of the day, granted theose positions have been held for more than a day (to not trigger PDT rule)'''
+        '''script that executes near close of the day, granted those positions have been held for more than a day (to not trigger PDT rule)'''
         # at EOD, sell the ones from previous day. ye. or hold.  ye.
         if portfolio.hasPositions:
             # check current positions-> calc implied sentiment from portfolio
@@ -211,75 +191,5 @@ class Strategy:
         
 
 class Market: 
-    '''
-    this does NOT store data. it only helps to fetch good options that fit what Strategy wants
-    '''
-    def findClosestOption():
-        pass # OR I could ahve it find a list of the closest, and let the strategy decide. or I could feed in what strat is looking for, and let it make a decision here
-
-
-class Backtest:
-    '''This package executes the back test. this iterates through the time series.'''
-    def __init__(self, strategy, optionsdf, underlydf, comissionpct=0, comissionnom=0, initialCash=100000, margin=1): # FIGURE OUT IF I ISHOULD INIVIALIZE CASH HERE OR LATER
-        self.Strategy = strategy
-        self.optionsdf = optionsdf
-        self.underlydf = underlydf
-        self.comissionpct = comissionpct
-        self.comissionnom = comissionnom
-        self.initialCash = initialCash
-        self.margin = margin
-
-        if self.comissionpct and self.comissionnom:
-                    raise ValueError("You can specify either a percentage commission or a nominal commission, not both.")
-
-    def run(self, startDate, daysForward=1, endDate=None, testLength=None): # market
-        '''
-        input dates as string, script will convert to datetime
-        number of days is number of BUSINESS DAYS
-        daysForward : how many days until expiration (ideally). script will look for longer DTEs if requested in unavailable
-        '''
-        dateCurrent = datetime.strptime(startDate, "%m-%d-%Y")
-        if endDate and testLength:
-            raise ValueError("Provide either startDate or testLength, not both")
-        elif endDate:
-            endDateCurrent = datetime.strptime(endDate, "%m-%d-%Y")
-            # timesteps = np.busday_count(startDate.date(), (endDate + timedelta(days=1)).date()) + 1
-            # timesteps = 3
-        elif testLength:
-            raise ValueError("sorry, please use endDate parameter. testLength currently not working")
-            # timesteps = testLength
-        else:
-            raise ValueError("endDate or testLength required")
-        
-        portfolio = Portfolio() # initialize
-        self.Strategy.firstDayInit(dateCurrent, portfolio, self.optionsdf)
-        
-        # for t in range(1,4+1):
-        while dateCurrent + dt.timedelta(days=daysForward) < endDateCurrent:  # until we get thru all the data
-
-            # make sure start date is business day; skip past weekends and holidays
-            while dateCurrent not in self.optionsdf["[QUOTE_DATE]"].values:
-                dateCurrent += pd.Timedelta(days=1)
-
-            self.Strategy.execute(self, dateCurrent, self.optionsdf, self.underlydf, portfolio)
-        # return stats, equityPlot, portfolio, tradebook
-        return True
-      
-    def calculate_comission(self, trade_value):
-        """
-        Calculate the commission for a trade.
-        :param trade_value: The dollar value of the trade.
-        :return: The commission as a float.
-        """
-        if self.comissionpct:
-            return trade_value * self.comissionpct
-        elif self.comissionnom:
-            return self.comissionnom
-        else:
-            return 0  # Default if no commission is specified        
-        
-    def optimize(self,data, property, market, strategy, params):
-        pass
-
-    def plot(self):
-        pass
+    '''this does NOT store data. I am currently not sure what would belong in this class'''
+    pass
