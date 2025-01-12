@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import datetime as dt
 import numpy as np
 import pandas as pd
-from sentiment_v1 import calcSentiment, sentiment2order, orderMakerBt, orderMakerLive
+# from sentiment_v1 import calcSentiment, sentiment2order, orderMakerBt, orderMakerLive
 
 
 class Position:
@@ -21,11 +21,14 @@ class Position:
 
 class Option:
     '''
-    this holds option information
+    strike: price (float)
+    expr: expiration (datetime, can init as datetime or str YYYY-MM-DD)
+    side: 'call' or 'put' (str)
     '''
     def __init__(self, strike, expr, side, optID=0):
         self.strike = strike
-        self.expr = expr # expiration date (str, YYYY-MM-DD)
+        self.expr = expr if isinstance(expr, datetime) else datetime.strptime(expr, "%Y-%m-%d")
+        # self.expr = expr # expiration date (str, YYYY-MM-DD)
         self.side = side # call or put
         self.ID = optID # optID is different from posID. referenced as either position.ID or option.ID
                         # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)

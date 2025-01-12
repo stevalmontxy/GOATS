@@ -2,8 +2,10 @@
 here are all the functions associated with sentiment. I am using the v1 so when I decide in the future
 to derive order sizing differently i can keep this original
 '''
+from goats import Position, Option, Portfolio, Strategy, Backtest
+from live_funcs import orderMakerLive
 
-def calcSentiment(t, data):
+def calcSentiment(data, t=None):
     '''
         - `dir` = f(previous day move size+direction, static bias, mean reversion, card count, TA)
         - `vol` = f(previous day move size, significant events, card count, TA, time since last big move)
@@ -12,9 +14,10 @@ def calcSentiment(t, data):
     dir = .6 # I did some DIFFERENT math
     return vol, dir
 
-def sentiment2order(vol, dir, backtest=True, time=None):
+def sentiment2order(vol, dir, latestPrice=None, time=None, backtest=True):
     '''
     backtest: bool
+    latestPrice is expected if bt=true
     time: None if bt=true'''
     def execute_order(*args, **kwargs):
         """       A wrapper to handle backtesting and live order execution.  """
@@ -31,7 +34,7 @@ def sentiment2order(vol, dir, backtest=True, time=None):
         (0.7, 0.4, lambda: execute_order('1atmcall', '2atmput')), # vol: .3-.7, dir: 0-.4
         # (0.7, 0.6, lambda: SentimentV1.orderMaker('1itmcall', '1itmput')),
         (0.7, 0.6, lambda: execute_order([{'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
-                                        {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1}], backtest, time)), #'1itmcall', '1itmput'
+                                        {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1}], latestPrice, time)), #'1itmcall', '1itmput'
         (0.7, 0.85, lambda: execute_order('2atmcall', '1atmput')),
         (0.7, 1.0, lambda: execute_order('1OTMcall+2atmcall', '1atmput')),
         (1.0, 0.25, lambda: execute_order('2atmcall', '2otmput+1atmput')),  # THESE MAYBE EXP A DAY EARLY SOME
@@ -47,6 +50,7 @@ def sentiment2order(vol, dir, backtest=True, time=None):
 
 def orderMakerBt(orders, time=None):
     """
+    THIS NEEDS TO BE MOVED TO BACKTEST SRC FOLDER
     Orders: List of dictionaries, each containing strikeDist, exprDist, side, qty
     Example:
         orders = [
@@ -63,6 +67,3 @@ def orderMakerBt(orders, time=None):
         # # if side == 'call': not needed, same process for call or put. strike dist is properly set to acct for either case
         # option = Option(strike, expr, side)
         # Portfolio.openPosition(port, time, qty, option)
-
-def orderMakerLive():
-    pass
