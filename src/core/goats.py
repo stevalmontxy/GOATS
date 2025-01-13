@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import datetime as dt
 import numpy as np
 import pandas as pd
@@ -22,12 +22,12 @@ class Position:
 class Option:
     '''
     strike: price (float)
-    expr: expiration (datetime, can init as datetime or str YYYY-MM-DD)
+    expr: expiration (date, can init as date(time) or str YYYY-MM-DD)
     side: 'call' or 'put' (str)
     '''
     def __init__(self, strike, expr, side, optID=0):
         self.strike = strike
-        self.expr = expr if isinstance(expr, datetime) else datetime.strptime(expr, "%Y-%m-%d")
+        self.expr = expr if isinstance(expr, date) else datetime.strptime(expr, "%Y-%m-%d")
         self.side = side
         self.ID = optID # optID is different from posID. referenced as either position.ID or option.ID
                         # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)

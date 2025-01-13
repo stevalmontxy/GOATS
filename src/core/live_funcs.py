@@ -7,7 +7,26 @@ import pandas as pd
 
 # import sys
 from goats import Position, Option, Portfolio, Strategy
-# from sentiment_v1 import calcSentiment, sentiment2order
+
+
+import alpaca
+from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
+from alpaca.data.historical.stock import StockHistoricalDataClient, StockLatestTradeRequest
+from alpaca.trading.client import TradingClient, GetAssetsRequest
+from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest
+from alpaca.trading.enums import AssetStatus, ContractType, OrderSide, OrderType, TimeInForce, QueryOrderStatus, OrderStatus
+
+from mysecrets import ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER
+from mysecrets import GMAIL_USER, GMAIL_PASS
+
+from email.message import EmailMessage
+import ssl
+import smtplib
+import pytz
+
+trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER, paper=True)
+stock_data_client = StockHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
+option_data_client = OptionHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
 
 
 def createUnderlydf(symbol, dataInterval, dataPeriod): 
@@ -16,11 +35,16 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     symbol: str
     dataInterval: str ('1hour')
     dataPeriod: int (number of days desired)'''
-    today = datetime.today().strftime('%Y-%m-%d')
-    startDate = datetime.today() - timedelta(days=dataPeriod)
+    today = date.today().strftime('%Y-%m-%d')
+    startDate = date.today() - timedelta(days=dataPeriod)
     startDateFormatted = startDate.strftime('%Y-%m-%d')
     url = f'https://financialmodelingprep.com/api/v3/historical-chart/{dataInterval}/{symbol}?from={startDateFormatted}&to={today}&apikey={FMP_KEY}'
-    data = rq.get(url).json()
+    try:
+        data = rq.get(url).json()
+    except:
+        print("failed to request candles")
+        recordResults("gettingdatafailed")
+        
     data = pd.DataFrame(data)
     data['date'] = pd.to_datetime(data['date'])
     data.set_index('date', inplace=True)
@@ -49,27 +73,23 @@ def orderMakerLive(orders, underlyingLast, time=None):
                                 {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
                                 {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1} ]
     '''
+    receipts = []
     for order in orders:
         goalStrike = underlyingLast + order['strikeDist']
-        goalExpr = datetime.today() + timedelta(days=order['exprDist'])
+        goalExpr = date.today() + timedelta(days=order['exprDist'])
         option = Option(goalStrike, goalExpr, order['side'])
-        findClosestOption(option)
+        # print('option date', option.expr, type(option.expr))
+        o = findClosestOption(option)
+        try:
+            res = optionsLimitOrder(o, order['qty'])
+            receipts.append({'name': o.name, 'qty': order['qty'], 'status': res.status})
+            # print(res.status==OrderStatus.ACCEPTED)
+        except:
+            print("error at order placing")
+            recordResults("order failed")
+    recordResults("order success", receipts)   
+
             
-
-import alpaca
-from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
-from alpaca.data.historical.stock import StockHistoricalDataClient, StockLatestTradeRequest
-from alpaca.trading.client import TradingClient, GetAssetsRequest
-from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest
-from alpaca.trading.enums import AssetStatus, ContractType, OrderSide, OrderType, TimeInForce, QueryOrderStatus
-
-from mysecrets import ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER
-
-# from alpaca.trading.stream import TradingStream
-trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER, paper=True)
-stock_data_client = StockHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
-option_data_client = OptionHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
-
 def findClosestOption(Option: Option):
     '''
     finds live option that best matches desired strike and expiration
@@ -87,10 +107,10 @@ def findClosestOption(Option: Option):
     while not dayFound:
         for o in options_chain_list:
             # print(o.expiration_date, Option.expr.date(), o.expiration_date == Option.expr.date(), type(o.expiration_date), type(Option.expr.date()))
-            if o.expiration_date == Option.expr.date():
+            if o.expiration_date == Option.expr:
                 dayFound = True
                 break
-        if o.expiration_date != Option.expr.date():
+        if o.expiration_date != Option.expr:
             Option.expr += timedelta(days=1)
 
     options_chain_list_reduced = optionsChainReq("SPY", Option.side, Option.expr, None, None,  min_strike, max_strike) # get only on correct day
@@ -101,6 +121,7 @@ def findClosestOption(Option: Option):
             priceDiff=abs(o.strike_price-Option.strike)
             closestOpt = o
 
+    # print(closestOpt)
     return closestOpt
 
 
@@ -151,3 +172,71 @@ def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiratio
 
     # print(f"number of options retreived: {len(options_chain_list)}")
     return options_chain_list
+
+
+def optionsLimitOrder(option, qty):
+    '''option: just how it is output from alpaca
+    qty: float or int'''
+    req = LimitOrderRequest(
+        symbol=option.symbol,
+        qty=qty,
+        limit_price = option.close_price,
+        side=OrderSide.BUY,
+        type=OrderType.LIMIT,
+        time_in_force = TimeInForce.DAY
+        )
+
+    res = trade_client.submit_order(req)
+    
+    return res
+
+
+def recordResults(status, receipts=None):
+    '''
+    Takes status of program end, creates a subject and body, and logs it as well as sending out email
+    recordResults(status, symbol=None, qty=None, signal=None, price=None, SL=None, TP=None, unrealizedPL=None)
+    '''
+    currentTime = datetime.now(pytz.timezone('US/Eastern')) # get the local time of stock exchange
+    currentTime = currentTime.strftime('%b %d, %Y %H:%M EST')
+
+    if status == 'order success':
+        subject = f'GOATS {currentTime}: Orders placed successfully'
+        body = f'Orders successfully placed today :)\n'
+        for r in receipts:
+            body += f'{r['qty']} shares of {r['name']} -- {r['status']}\n'
+    elif status == 'order failed':
+        subject = f'GOATS {currentTime}: Order failed to place!'
+        body = 'sorry mate I tried. well you tried a while ago. but i slipped thru haha\n'
+    # elif status == 'no orders made':
+    #     subject = f'{currentTime}: No signals, no orders made'
+    #     body = 'The title says it all :):\n'
+    #     body += f'Data evaluated using latest data from {latestTime} EST.\n'
+    # elif status == 'positions already':
+    #     subject = f'{currentTime}: Already holding a position of {symbol} at ${price: .2f}'
+    #     body = f'Unrealized P/L: ${unrealizedPL: .2f} ({unrealizedPLPC: .2f}%)\n'
+    else:
+        subject = 'PROBLEM PROBLEM'
+        body = 'BIG PROBLEM HAPPENED'
+    # body += f'Current portfolio value: ${portfolioVal: .2f}'
+
+    # logging.info(subject)
+    # logging.info(body)
+    print(subject, body)
+    # sendEmail(subject, body)
+
+def sendEmail(subject, body):
+    '''
+    Sends email to self using user in mysecrets file containing provided info
+    sendEmail(subject, body)
+    '''
+    GMAIL_RECEIVER = GMAIL_USER # set email recipient as self
+    em = EmailMessage()
+    em['From'] = GMAIL_USER
+    em['To'] = GMAIL_USER
+    em['subject'] = subject
+    em.set_content(body)
+
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
+        smtp.login(GMAIL_USER, GMAIL_PASS)
+        smtp.sendmail(GMAIL_USER, GMAIL_RECEIVER, em.as_string())
