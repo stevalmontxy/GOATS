@@ -1,5 +1,7 @@
 '''These are functions only relevant to live execution'''
 
+import shelve
+
 from mysecrets import FMP_KEY
 from datetime import date, datetime, timedelta
 import requests as rq
@@ -7,7 +9,7 @@ import pandas as pd
 
 # import sys
 from goats import Position, Option, Portfolio, Strategy
-
+from sentiment_v1 import calcSentiment, sentiment2order
 
 import alpaca
 from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
@@ -27,6 +29,66 @@ import pytz
 trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER, paper=True)
 stock_data_client = StockHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
 option_data_client = OptionHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
+
+
+'''
+def firstDayInit
+    -there are no positions currently. port in db may or may not exist.
+    -this script is triggered manually
+    calc vol and dir
+    enter positions
+    update/create port, save
+
+def closingScript
+    - this script runs every weekday, the day after firstDayInit
+    if today is in the significant days list:
+        exit. end of day
+    else:
+        check if open positions should be closed today or no
+        if yes: 
+            close them
+
+        calc vol and dir
+        enter positions
+        update/create port, save
+        
+def updatePortfolio
+    update acct val, positions, intended exit n stuff n yea
+    return portfolio
+'''
+def closingScript():
+    pd.read_excel("significant_dates.xlsx")
+    #if today is in significant dates, and marked as a holiday or don't trade day, quit
+
+    with shelve.open("testDB") as db:
+        port: Portfolio = db.get('portfolio') #using db.get will return None if not found, instead of error
+
+    if port == None:
+        pass        
+        # build one up then bro
+    else:
+        # read current positions in port
+        # close if needed
+        db['a'] = 1
+        db['b'] = 2
+        db['c'] = 3
+        #
+        print(dict(db))
+        print(db['c'])
+        #
+        db.update(data) # this will replace old ones with new ones, leave old. ex: if old db has c and new data has no c, c is left unchanged
+        print(dict(db))
+
+        port = db['port'] # assigning anything using db must be done in this strcture
+        port: Portfolio = db['port'] # use type hinting can help
+
+    data: dict = {'port': Portfolio(initialCapital=10000)}
+
+    port # then it can be accessed outside
+
+    data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
+    vol, dir = calcSentiment(data)
+    sentiment2order(vol, dir, latestPrice, backtest=False)
 
 
 def createUnderlydf(symbol, dataInterval, dataPeriod): 

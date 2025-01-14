@@ -10,10 +10,13 @@ class Position:
     this allows possibility for stock positions in the future if desired
     
     I think I will put a stoploss/TP point in this area if I do add that to script'''
-    def __init__(self, option=None, stock=None, quantity=1, posID=0):
+    def __init__(self, option=None, stock=None, symbol=None, entryDate=None, exitDate=None, quantity=1, posID=0):
         self.option = option
         self.stock = stock
         self.quantity = quantity
+        self.symbol = symbol
+        self.entryDate = entryDate # date(NOT datetime)
+        self.exitDate = exitDate # date(NOT datetime)
         self.ID = posID # position ID and option ID are both self referenced as ID
                         # posID: id number within active positions. an option will be associated with a posID throughout its holding,
                         #        then the posID will be reused by other positions
@@ -44,18 +47,18 @@ class Portfolio:
     def __init__(self, timesteps=None, initialCapital=100000):
         self.cash = initialCapital # this is set at instantiation, and changed over time. don't need to track over time
         self.positions = {}
-        self.thisRound = {} # ID: n, value: $x, add opened or clsoed when checked, use this to calc acct value
-        self.trade_log = []
-        self.acctValue = [initialCapital] # acct value over time
+        # self.thisRound = {} # ID: n, value: $x, add opened or clsoed when checked, use this to calc acct value
+        # self.trade_log = []
+        self.acctValue = initialCapital # acct value over time
 
-    def openPosition(self, time, qty, option=None, stock=None):
+    def openPosition(self, entryPrice, entryTime, qty, option=None, stock=None):
         '''Add to positions
         time: datetime YYYY-MM-DD HH:MM
         qty: float
         option: Option object
         Stock: Stock object (not defined)
         '''
-        value = self.getOptionValue(option.expr, option.strike, option.strike, time)
+        # value = self.getOptionValue(option.expr, option.strike, option.strike, time)
         self.positions[option.ID] = {"option": option, "open_time": time, "initial_value": value}
         self.cash -= 100*value
         self.trade_log.append(f"Opened position ID: {option.ID} at time: {time} at ${value}")
