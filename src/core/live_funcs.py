@@ -7,7 +7,6 @@ from datetime import date, datetime, timedelta
 import requests as rq
 import pandas as pd
 
-# import sys
 from goats import Position, Option, Portfolio, Strategy
 from sentiment_v1 import calcSentiment, sentiment2order
 
@@ -15,7 +14,7 @@ import alpaca
 from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
 from alpaca.data.historical.stock import StockHistoricalDataClient, StockLatestTradeRequest
 from alpaca.trading.client import TradingClient, GetAssetsRequest
-from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest
+from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest, GetCalendarRequest
 from alpaca.trading.enums import AssetStatus, ContractType, OrderSide, OrderType, TimeInForce, QueryOrderStatus, OrderStatus
 
 from mysecrets import ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER
@@ -30,29 +29,25 @@ trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SEC
 stock_data_client = StockHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
 option_data_client = OptionHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
 
+def firstDayInit():
+    '''run this script when GOATS has never ran from a given directory before.
+    this script: creates/syncs portfolio object
+    places orders for the day
+    the system needs it to have a correct portfolio object.
+    in its current state, running updatePortfolio() alone would suffice 
+    and this script is unnecessary, but in the future initialization may require more'''
+    port = updatePortfolio()
 
-'''
-def firstDayInit
-    -there are no positions currently. port in db may or may not exist.
-    -this script is triggered manually
-    calc vol and dir
-    enter positions
-    update/create port, save
+    data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
+    vol, dir = calcSentiment(data)
+    orders = sentiment2order(vol, dir)
+    port = orderMakerLive(orders, latestPrice, port)
+    with shelve.open("goatsDB") as db:
+        db.update({'portfolio': port}) # store changes to port object
 
-def closingScript
-        if today is in the significant days list:
-        exit. end of day
-    else:
-        check if open positions should be closed today or no
-        if yes: 
-            close them
-
-        calc vol and dir
-        enter positions
-        update/create port, save
-'''
 def closingScript():
-    '''- this script runs every weekday, the day after firstDayInit'''
+    '''This script runs every weekday, starting the day after firstDayInit. 
+    assuming port object exists (setup by firstDayInit)'''
     sig_dates = pd.read_excel("significant_dates.xlsx")
     today_timestamp = pd.Timestamp(date.today())
 
@@ -64,50 +59,41 @@ def closingScript():
         vol_calend = 0
         dir_calend = 0
 
-    if vol_calend != -1:
+    if vol_calend != -1: # -1 = market closed / manual stay out signal
         with shelve.open("goatsDB") as db:
-            port: Portfolio = db.get('portfolio') #using db.get will return None if not found, instead of error
-            print('dict at start of program:', dict(db))
-
-        if port == None:# assume there are no positions, and no portfolio. so make a port object
-            print('no port, making new one')
-            port = Portfolio()
-            with shelve.open("goatsDB") as db:
-                db['portfolio'] = port
-        else:
-            # read current positions in port
-            # close if needed
-            if port.hasPositions:
-                print("port has positions:")
-                for p in port.positions:
-                    print(p)
-            else:
-                print('port exisrts, no positions')
+            port: Portfolio = db.get('portfolio') # using db.get will return None if not found instead of error
+        
+        # read current positions in port, close any if needed
+        if port.hasPositions:
+            for p in port.positions:
+                if p.exitDate == date.today():
+                    closePosition(p, orderType='limit') # place exit order on brokerage
+                    port.removePosition(p.symbol) # remove from port object
+                    print(f'getting out of {p.symbol} position')
+                    # exit the position, remove from port
 
         # either way, continue and place new orders
-        # data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
-        # vol, dir = calcSentiment(data)
-        # orders = sentiment2order(vol, dir)
-        # orderMakerLive(orders, latestPrice, port)
+        data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
+        vol, dir = calcSentiment(data)
+        orders = sentiment2order(vol, dir)
+        port = orderMakerLive(orders, latestPrice, port)
         with shelve.open("goatsDB") as db:
-            db.update({'portfolio': port})
-            print('dict at end of program:', dict(db))
-    # else: market closed today or just do nothing today
+            db.update({'portfolio': port}) # store changes to port object
+    else:
+        print('market out day')
 
 
 def updatePortfolio():
-    '''if you know the stored portfolio object is not in sync w the real portfolio status, run this'''
+    '''if you know the stored portfolio object is not in sync w the real portfolio state, run this'''
     with shelve.open("goatsDB") as db:
-        port: Portfolio = db.get('portfolio') # using db.get will return None if not found, instead of error
-        print('dict at start of program:', dict(db))
+        port: Portfolio = db.get('portfolio') # using db.get will return None if not found instead of error
+        # print('dict at start of program:', dict(db))
 
     if port == None: # make a new port object
-        print('no port, making new one')
         port = Portfolio()
     
     positions_broker = trade_client.get_all_positions()
     if port.hasPositions:
-        print("port has positions:")
         symbols_broker = [p.symbol for p in positions_broker]
         for p in port.positions:
             if p.symbol not in symbols_broker:
@@ -117,11 +103,12 @@ def updatePortfolio():
         symbols_port = [p.symbol for p in port.positions]
         for p in positions_broker:
             if p.symbol not in symbols_port:
-                port.addPosition(p, p.symbol, p.qty, None)
+                port.addPosition(p, p.symbol, p.qty, None, None)
 
     with shelve.open("goatsDB") as db:
         db.update({'portfolio': port})
-        print('dict at end of program:', dict(db))
+        # print('dict at end of program:', dict(db))
+    return port # optional return
 
 
 def createUnderlydf(symbol, dataInterval, dataPeriod): 
@@ -178,13 +165,14 @@ def orderMakerLive(orders, underlyingLast, port: Portfolio, time=None):
         try:
             res = optionsLimitOrder(o, order['qty'])
             receipts.append({'name': o.name, 'qty': order['qty'], 'status': res.status})
-            port.addPosition(o, o.symbol, order['qty'], date.today()) # add to portfolio for logging. will be saved and loaded on next code execution
-            # print(res.status==OrderStatus.ACCEPTED)
+            exitDate = findClosestOpenDay(date.today() + timedelta(days=1))
+            port.addPosition(o, o.symbol, order['qty'], date.today(), exitDate) # add to portfolio for logging. will be saved and loaded on next code execution
+            # print(res.status)
         except:
             print("error at order placing")
             recordResults("order failed")
-    recordResults("order success", receipts)   
-    # return o, res # for debugging
+    recordResults("order success", receipts)
+    return port   
 
 
 def findClosestOption(Option: Option):
@@ -228,7 +216,7 @@ def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiratio
     This function can handle if the chain is over 1 page (100 options) long
     underlying symbol: str
     side: str 'call' or 'put'
-    all dates in datetime
+    all dates in datetime.date
     min strike, max strike: float or int'''
     type = ContractType.CALL if side == 'call' else ContractType.PUT
 
@@ -271,20 +259,62 @@ def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiratio
     return options_chain_list
 
 
+def findClosestOpenDay(date):
+    '''given a date, it will return the soonest market open date
+    date: datetime.date'''
+    endDate = date + timedelta(days=4)
+    req = GetCalendarRequest(start=date, end=endDate)
+    res = trade_client.get_calendar(req)
+
+    openDays = [day.date for day in res]
+    while date not in openDays:
+        date += timedelta(days=1)
+    return date
+
+
 def optionsLimitOrder(option, qty):
     '''option: just how it is output from alpaca
-    qty: float or int'''
+    qty: float or int    '''
+    option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=option.symbol)
+    option_quote = option_data_client.get_option_latest_quote(request_params=option_quote_request)
+    mid_price = round((option_quote[option.symbol].bid_price + option_quote[option.symbol].ask_price)/2,2)
+    # print('mid price:', mid_price)
     req = LimitOrderRequest(
         symbol=option.symbol,
         qty=qty,
-        limit_price = option.close_price,
+        limit_price = mid_price,
         side=OrderSide.BUY,
         type=OrderType.LIMIT,
         time_in_force = TimeInForce.DAY
         )
 
+    # print(req)
     res = trade_client.submit_order(req)
-    
+    return res # optional return
+
+
+def closePosition(pos: Position, orderType):
+    '''this is a separate function than optionsLimitOrder bc it takes a different type of input'''
+    try:
+        if orderType == 'limit':
+            option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=pos.symbol)
+            option_quote = option_data_client.get_option_latest_quote(request_params=option_quote_request)
+            mid_price = round((option_quote[pos.symbol].bid_price + option_quote[pos.symbol].ask_price)/2,2)
+
+            req = LimitOrderRequest(
+                symbol=pos.symbol,
+                qty=pos.qty,
+                limit_price = mid_price,
+                side=OrderSide.SELL,
+                type=OrderType.LIMIT,
+                time_in_force = TimeInForce.DAY )
+
+            res = trade_client.submit_order(req)
+        elif orderType=='market':
+            res = trade_client.close_position(symbol_or_asset_id=pos.symbol)
+    except:
+        print('close position failed')
+        recordResults('failed to close order')
     return res
 
 

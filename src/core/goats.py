@@ -56,9 +56,8 @@ class Portfolio:
         # self.trade_log = []
         self.acctValue = initialCapital # acct value over time
 
-    def addPosition(self, option, symbol, qty, entryDate):
+    def addPosition(self, option, symbol, qty, entryDate, exitDate):
         '''entry date should be input of date.today(). if position is being updated, it will be None'''
-        exitDate = entryDate + timedelta(days=1) if isinstance(entryDate, date) else None
         pos = Position(option=option, symbol=symbol, entryDate=entryDate, exitDate=exitDate, qty=qty)
         self.positions.append(pos)
 
