@@ -40,8 +40,7 @@ def firstDayInit
     update/create port, save
 
 def closingScript
-    - this script runs every weekday, the day after firstDayInit
-    if today is in the significant days list:
+        if today is in the significant days list:
         exit. end of day
     else:
         check if open positions should be closed today or no
@@ -51,44 +50,78 @@ def closingScript
         calc vol and dir
         enter positions
         update/create port, save
-        
-def updatePortfolio
-    update acct val, positions, intended exit n stuff n yea
-    return portfolio
 '''
 def closingScript():
-    pd.read_excel("significant_dates.xlsx")
-    #if today is in significant dates, and marked as a holiday or don't trade day, quit
+    '''- this script runs every weekday, the day after firstDayInit'''
+    sig_dates = pd.read_excel("significant_dates.xlsx")
+    today_timestamp = pd.Timestamp(date.today())
 
-    with shelve.open("testDB") as db:
-        port: Portfolio = db.get('portfolio') #using db.get will return None if not found, instead of error
-
-    if port == None:
-        pass        
-        # build one up then bro
+    if today_timestamp in sig_dates.date.values:
+        index = sig_dates.index[sig_dates.date == today_timestamp][0]
+        vol_calend = sig_dates.loc[index, 'vol']
+        dir_calend = sig_dates.loc[index, 'dir']
     else:
-        # read current positions in port
-        # close if needed
-        db['a'] = 1
-        db['b'] = 2
-        db['c'] = 3
-        #
-        print(dict(db))
-        print(db['c'])
-        #
-        db.update(data) # this will replace old ones with new ones, leave old. ex: if old db has c and new data has no c, c is left unchanged
-        print(dict(db))
+        vol_calend = 0
+        dir_calend = 0
 
-        port = db['port'] # assigning anything using db must be done in this strcture
-        port: Portfolio = db['port'] # use type hinting can help
+    if vol_calend != -1:
+        with shelve.open("goatsDB") as db:
+            port: Portfolio = db.get('portfolio') #using db.get will return None if not found, instead of error
+            print('dict at start of program:', dict(db))
 
-    data: dict = {'port': Portfolio(initialCapital=10000)}
+        if port == None:# assume there are no positions, and no portfolio. so make a port object
+            print('no port, making new one')
+            port = Portfolio()
+            with shelve.open("goatsDB") as db:
+                db['portfolio'] = port
+        else:
+            # read current positions in port
+            # close if needed
+            if port.hasPositions:
+                print("port has positions:")
+                for p in port.positions:
+                    print(p)
+            else:
+                print('port exisrts, no positions')
 
-    port # then it can be accessed outside
+        # either way, continue and place new orders
+        # data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
+        # vol, dir = calcSentiment(data)
+        # orders = sentiment2order(vol, dir)
+        # orderMakerLive(orders, latestPrice, port)
+        with shelve.open("goatsDB") as db:
+            db.update({'portfolio': port})
+            print('dict at end of program:', dict(db))
+    # else: market closed today or just do nothing today
 
-    data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
-    vol, dir = calcSentiment(data)
-    sentiment2order(vol, dir, latestPrice, backtest=False)
+
+def updatePortfolio():
+    '''if you know the stored portfolio object is not in sync w the real portfolio status, run this'''
+    with shelve.open("goatsDB") as db:
+        port: Portfolio = db.get('portfolio') # using db.get will return None if not found, instead of error
+        print('dict at start of program:', dict(db))
+
+    if port == None: # make a new port object
+        print('no port, making new one')
+        port = Portfolio()
+    
+    positions_broker = trade_client.get_all_positions()
+    if port.hasPositions:
+        print("port has positions:")
+        symbols_broker = [p.symbol for p in positions_broker]
+        for p in port.positions:
+            if p.symbol not in symbols_broker:
+                port.removePosition(p.symbol)
+    
+    if len(positions_broker) > 0:
+        symbols_port = [p.symbol for p in port.positions]
+        for p in positions_broker:
+            if p.symbol not in symbols_port:
+                port.addPosition(p, p.symbol, p.qty, None)
+
+    with shelve.open("goatsDB") as db:
+        db.update({'portfolio': port})
+        print('dict at end of program:', dict(db))
 
 
 def createUnderlydf(symbol, dataInterval, dataPeriod): 
@@ -129,13 +162,13 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     return data, data.Close.iloc[-1], startDate, endDate
 
 
-def orderMakerLive(orders, underlyingLast, time=None):
+def orderMakerLive(orders, underlyingLast, port: Portfolio, time=None):
     '''     orders: List of dictionaries, each containing strikeDist, exprDist, side, qty;
             example:        orders = [
                                 {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
                                 {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1} ]
     '''
-    receipts = []
+    receipts = [] # used for email
     for order in orders:
         goalStrike = underlyingLast + order['strikeDist']
         goalExpr = date.today() + timedelta(days=order['exprDist'])
@@ -145,13 +178,15 @@ def orderMakerLive(orders, underlyingLast, time=None):
         try:
             res = optionsLimitOrder(o, order['qty'])
             receipts.append({'name': o.name, 'qty': order['qty'], 'status': res.status})
+            port.addPosition(o, o.symbol, order['qty'], date.today()) # add to portfolio for logging. will be saved and loaded on next code execution
             # print(res.status==OrderStatus.ACCEPTED)
         except:
             print("error at order placing")
             recordResults("order failed")
     recordResults("order success", receipts)   
+    # return o, res # for debugging
 
-            
+
 def findClosestOption(Option: Option):
     '''
     finds live option that best matches desired strike and expiration

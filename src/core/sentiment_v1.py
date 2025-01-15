@@ -3,14 +3,13 @@ here are all the functions associated with sentiment. I am using the v1 so when 
 to derive order sizing differently i can keep this original
 '''
 # from goats import Position, Option, Portfolio, Strategy, Backtest
-from live_funcs import orderMakerLive
-from bt_funcs import orderMakerBt
+
 
 def calcSentiment(data, t=None):
     '''
-        - `dir` = f(previous day move size+direction, static bias, mean reversion, card count, TA)
-        - `vol` = f(previous day move size, significant events, card count, TA, time since last big move)
-        '''
+    - `dir` = f(previous day move size+direction, static bias, mean reversion, card count, TA)
+    - `vol` = f(previous day move size, significant events, card count, TA, time since last big move)
+    '''
     vol = .6 # I did some math
     dir = .6 # I did some DIFFERENT math
     return vol, dir
