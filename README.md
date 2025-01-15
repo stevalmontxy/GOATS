@@ -1,6 +1,6 @@
 # Glorious Options Automated Trading Strategy (GOATS) Overview
 ### Conception and principle
-I have been trading options for a while now, and having previously created algorithmic trading systems that use technical analysis. However, my coding has improved and I like options, and wanted to go for something more challenging. Here is the big challenge that i have been thinking up for a while now. Essentially I wanted to build an options trader that will have some disadvantages to a human, but will have many advantages over me. It can't think past some (not so) simple rules, but, it can check the market nonstop, factor in a ton of things evenly, and has no problem and never gets tired of doing sizing calculations. It can hold different positions and make them extend, and do complicated things that would take a good amount of effort for me to personally keep track of while balancing school and life. You could def argue that the time to ponder and write the system is probably huge, and it definitely is. But I have thoroughly enjoyed it. I have built a system that is quite complex, self operating, but also, has room and I have plans to continually upgrade and add depth to the bots systems
+I have been trading options for a while now, and having previously created algorithmic trading systems that use technical analysis. However, my coding has improved and I like options, and wanted to go for something more challenging. Here is the big challenge that I have been thinking up for a while now. Essentially I wanted to build my personal trading strategy into an automated system, with a few tweaks. Being automated will give it some disadvantages to a human, but will have many advantages also. It can't "think" past some (not so) simple rules, but, it can check the market nonstop, factor in a ton of things evenly, and has no problem and never gets tired of doing sizing calculations. It can hold many positions and keep track of each ones exit, and do complicated things that would take a good amount of effort for me to personally keep track of while balancing school and life. You could def argue that the time to ponder and write the system is probably huge, and it definitely is. But I have been thoroughly enjoying it. I have built a system that is quite complex, self operating, but also, has room and I have plans to continually upgrade and add depth to the bot's systems.
 
 
 
@@ -14,15 +14,11 @@ __4__ different scripts:
 - one that runs monthly to auto update parameters  
    
 
-Since this is built locally, is there a way to write to log and read that log in future runs? that would be pretty useful
-
-
-
 
 ### Insides of strategy
   
-#### Vol and Dir functions
-- Volatility sentiment is a function of previous day move size, significant events, card count, TA, time since last big move
+#### Vol and Dir functions (part of sentiment class)
+- Volatility is a function of previous day move size, significant events, card count(like from blackjack. I am still working this idea out), technical analysis (TA, though I will try to minimize its use), time since last big move
     - can be multidimensional (defined using a distribution, not a singular value)
 - Directional sentiment is a function of previous day move size and direction, static bias, mean reversion, card count, TA
     - for low levels of dir, the static bias is pretty strong, and the ratio call:put is pretty high. actually it should be whatever dir the long MA is (long term trend)
@@ -48,7 +44,7 @@ Since this is built locally, is there a way to write to log and read that log in
 
 
 ### Implementation
-Once up and running, I plan to run the code on a linux server setup for CI/CD on a cheap laptop I bought.
+Once up and running, I plan to run the code on a linux machine setup for CI/CD on a cheap laptop I bought.
 
 
 
@@ -59,9 +55,9 @@ So evidently there is a ton of stuff I can work on and add to the system. There 
 
 
 ### Sources that helped me
-systematic trading - overall framework   
-leverage space trading model helped in sizing   
-trading in the zone - helped my discretionary trading that I incorporated into the system  
-bayesian statistics the fun way - helped with analysis and idea testing  
-option volatility and pricing - of course  
+systematic trading (robert carver) - overall framework   
+the leverage space trading model (ralph vince) - helped in sizing   
+trading in the zone (mark douglas) - helped with my discretionary trading that I incorporated into the system  
+bayesian statistics the fun way (will kurt) - helped with analysis and hypothesis testing  
+option volatility and pricing (sheldon natenberg) - of course  
 backtesting.py package - I took a lot of reference from this
