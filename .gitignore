@@ -1,9 +1,8 @@
 # .csv and .txt added to exclude large options chains files
 *.csv
 *.txt
-# omit my api keys and spreadsheet
+# omit my api keys
 mysecrets.py
-significant_dates.xlsx
 #omit my storage for shelves
 goatsDB*
 # everything else below is from the default .gitignore for python repos
