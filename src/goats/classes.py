@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta, date
-import datetime as dt
 import numpy as np
 import pandas as pd
-# from sentiment_v1 import calcSentiment, sentiment2order
 
 
 class Position:

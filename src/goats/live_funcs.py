@@ -1,29 +1,29 @@
 '''These are functions only relevant to live execution'''
 
+# standard imports
+import pytz
 import shelve
-
-from mysecrets import FMP_KEY
+import smtplib
+import ssl
 from datetime import date, datetime, timedelta
-import requests as rq
+from email.message import EmailMessage
+
+# third party imports
 import pandas as pd
-
-from goats import Position, Option, Portfolio, Strategy
-from sentiment_v1 import calcSentiment, sentiment2order
-
-import alpaca
+import requests as rq
 from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
 from alpaca.data.historical.stock import StockHistoricalDataClient, StockLatestTradeRequest
 from alpaca.trading.client import TradingClient, GetAssetsRequest
-from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest, GetCalendarRequest
 from alpaca.trading.enums import AssetStatus, ContractType, OrderSide, OrderType, TimeInForce, QueryOrderStatus, OrderStatus
+from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest, GetCalendarRequest
 
-from mysecrets import ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER
-from mysecrets import GMAIL_USER, GMAIL_PASS
-
-from email.message import EmailMessage
-import ssl
-import smtplib
-import pytz
+# local imports
+from .mysecrets import (
+    ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER,
+    GMAIL_USER, GMAIL_PASS,
+    FMP_KEY )
+from .classes import Position, Option, Portfolio, Strategy
+from .sentiment_v1 import calcSentiment, sentiment2order
 
 trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER, paper=True)
 stock_data_client = StockHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
@@ -348,7 +348,7 @@ def recordResults(status, receipts=None):
 
     # logging.info(subject)
     # logging.info(body)
-    print(subject, body)
+    print(subject,'\n', body)
     # sendEmail(subject, body)
 
 def sendEmail(subject, body):
