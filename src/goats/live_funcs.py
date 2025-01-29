@@ -171,7 +171,7 @@ def orderMakerLive(orders, underlyingLast, port: Portfolio, time=None):
         except:
             print("error at order placing")
             recordResults("order failed")
-    recordResults("order success", receipts)
+    recordResults("order success", receipts=receipts)
     return port   
 
 
@@ -318,7 +318,7 @@ def closePosition(pos: Position, orderType):
     return res
 
 
-def recordResults(status, receipts=None):
+def recordResults(status, receipts=None, func=None, error=None):
     '''
     Takes status of program end, creates a subject and body, and logs it as well as sending out email
     recordResults(status, symbol=None, qty=None, signal=None, price=None, SL=None, TP=None, unrealizedPL=None)
@@ -334,6 +334,10 @@ def recordResults(status, receipts=None):
     elif status == 'order failed':
         subject = f'GOATS {currentTime}: Order failed to place!'
         body = 'sorry mate I tried. well you tried a while ago. but i slipped thru haha\n'
+    elif status == 'failed to run':
+        subject = f'GOATS {currentTime}: failed to run!'
+        body = f'ran into error at {func}:\n'
+        body += error
     # elif status == 'no orders made':
     #     subject = f'{currentTime}: No signals, no orders made'
     #     body = 'The title says it all :):\n'

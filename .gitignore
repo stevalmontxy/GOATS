@@ -5,7 +5,7 @@
 mysecrets.py
 significant_dates.xlsx
 #omit my storage for shelves
-goatsDB.*
+goatsDB*
 # everything else below is from the default .gitignore for python repos
 
 # Byte-compiled / optimized / DLL files
