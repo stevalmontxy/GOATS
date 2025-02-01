@@ -53,6 +53,11 @@ So evidently there is a ton of stuff I can work on and add to the system. There 
 
 
 
+### Setup
+[still in progress] If you want to run this yourself, you will need some files that I have .gitignored away. for backtesting, you will need your own data. I got mine off of OptionsDX. for live implementation, you will need a mysecrets.py file with your API keys, and a .env file with your project root directory. I think the last thing is just to make sure you keep the significant_dates file kept up to date. for live execution, then only one necessary is the one in /src/live. Should be it.
+
+
+
 
 ### Sources that helped me
 systematic trading (robert carver) - overall framework   

@@ -1,8 +1,19 @@
 '''run this script manually'''
-import sys
-sys.path.insert(1,'/home/stevalmontxy/Documents/GitHub/Options-Backtesting-Python/src/')
 import os
-os.chdir('/home/stevalmontxy/Documents/GitHub/Options-Backtesting-Python/src/live')
+import sys
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv() # load GOATS_ROOT directory variable
+project_root = Path(os.getenv('GOATS_ROOT'))
+if project_root is None:
+    raise ValueError("GOATS_ROOT environment variable not set")
+
+src_path = project_root / "src"
+live_path = src_path / "live"
+
+sys.path.insert(1, str(src_path))
+os.chdir(str(live_path))
 
 import goats
 from goats.live_funcs import firstDayInit, recordResults
@@ -14,7 +25,7 @@ if __name__ == "__main__":
         firstDayInit()
         print('succesfully ran')
     # except requests.exceptions.ConnectionError:
-        # print("connection refused")
+        # print("connection refused") 
     except Exception as error:
         print(error)
         recordResults('failed to run', func = 'firstDayInit', error=str(error))
