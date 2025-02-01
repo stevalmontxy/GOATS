@@ -41,7 +41,8 @@ def firstDayInit():
     data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
     vol, dir = calcSentiment(data)
     orders = sentiment2order(vol, dir)
-    port = orderMakerLive(orders, latestPrice, port)
+    receipts = []
+    port = orderMakerLive(orders, latestPrice, port, receipts)
     with shelve.open("goatsDB") as db:
         db.update({'portfolio': port}) # store changes to port object
 
@@ -51,7 +52,7 @@ def closingScript():
     sig_dates = pd.read_excel("significant_dates.xlsx")
     today_timestamp = pd.Timestamp(date.today())
 
-    if today_timestamp in sig_dates.date.values:
+    if today_timestamp in sig_dates.date.values: # check spreadsheet for market close or special events
         index = sig_dates.index[sig_dates.date == today_timestamp][0]
         vol_calend = sig_dates.loc[index, 'vol']
         dir_calend = sig_dates.loc[index, 'dir']
@@ -63,11 +64,14 @@ def closingScript():
         with shelve.open("goatsDB") as db:
             port: Portfolio = db.get('portfolio') # using db.get will return None if not found instead of error
         
+        receipts = []
+        if port == None:
+            recordResults('no shelve obj')
         # read current positions in port, close any if needed
         if port.hasPositions:
             for p in port.positions:
                 if p.exitDate == date.today():
-                    closePosition(p, orderType='limit') # place exit order on brokerage
+                    receipts = closePosition(p, orderType='limit', receipts=receipts) # place exit order on brokerage
                     port.removePosition(p.symbol) # remove from port object
                     print(f'getting out of {p.symbol} position')
                     # exit the position, remove from port
@@ -76,7 +80,7 @@ def closingScript():
         data, latestPrice, _, _ = createUnderlydf("SPY", '1hour', 30)
         vol, dir = calcSentiment(data)
         orders = sentiment2order(vol, dir)
-        port = orderMakerLive(orders, latestPrice, port)
+        port = orderMakerLive(orders, latestPrice, port, receipts)
         with shelve.open("goatsDB") as db:
             db.update({'portfolio': port}) # store changes to port object
     else:
@@ -126,7 +130,7 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     except:
         print("failed to request candles")
         recordResults("gettingdatafailed")
-        
+
     data = pd.DataFrame(data)
     data['date'] = pd.to_datetime(data['date'])
     data.set_index('date', inplace=True)
@@ -149,13 +153,12 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     return data, data.Close.iloc[-1], startDate, endDate
 
 
-def orderMakerLive(orders, underlyingLast, port: Portfolio, time=None):
+def orderMakerLive(orders, underlyingLast, port: Portfolio, receipts, time=None):
     '''     orders: List of dictionaries, each containing strikeDist, exprDist, side, qty;
             example:        orders = [
                                 {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
                                 {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1} ]
     '''
-    receipts = [] # used for email
     for order in orders:
         goalStrike = underlyingLast + order['strikeDist']
         goalExpr = date.today() + timedelta(days=order['exprDist'])
@@ -164,7 +167,7 @@ def orderMakerLive(orders, underlyingLast, port: Portfolio, time=None):
         o = findClosestOption(option)
         try:
             res = optionsLimitOrder(o, order['qty'])
-            receipts.append({'name': o.name, 'qty': order['qty'], 'status': res.status})
+            receipts.append({'side': 'bought', 'name': o.name, 'qty': order['qty'], 'status': res.status})
             exitDate = findClosestOpenDay(date.today() + timedelta(days=1))
             port.addPosition(o, o.symbol, order['qty'], date.today(), exitDate) # add to portfolio for logging. will be saved and loaded on next code execution
             # print(res.status)
@@ -261,7 +264,8 @@ def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiratio
 
 def findClosestOpenDay(date):
     '''given a date, it will return the soonest market open date
-    date: datetime.date'''
+    date: datetime.date
+    note: in the future i might want to make this take an input of how many days timedelta'''
     endDate = date + timedelta(days=4)
     req = GetCalendarRequest(start=date, end=endDate)
     res = trade_client.get_calendar(req)
@@ -293,7 +297,7 @@ def optionsLimitOrder(option, qty):
     return res # optional return
 
 
-def closePosition(pos: Position, orderType):
+def closePosition(pos: Position, orderType, receipts):
     '''this is a separate function than optionsLimitOrder bc it takes a different type of input'''
     try:
         if orderType == 'limit':
@@ -312,10 +316,11 @@ def closePosition(pos: Position, orderType):
             res = trade_client.submit_order(req)
         elif orderType=='market':
             res = trade_client.close_position(symbol_or_asset_id=pos.symbol)
+        receipts.append({'side': 'sold', 'name': pos.symbol, 'qty': pos.qty, 'status': res.status})
     except:
         print('close position failed')
         recordResults('failed to close order')
-    return res
+    return  receipts #res
 
 
 def recordResults(status, receipts=None, func=None, error=None):
@@ -327,10 +332,10 @@ def recordResults(status, receipts=None, func=None, error=None):
     currentTime = currentTime.strftime('%b %d, %Y %H:%M EST')
 
     if status == 'order success':
-        subject = f'GOATS {currentTime}: Orders placed successfully'
-        body = f'Orders successfully placed today :)\n'
+        subject = f'GOATS {currentTime}: Successfully executed closingScript today!'
+        body = f'Orders placed today:\n'
         for r in receipts:
-            body += f'{r['qty']} shares of {r['name']} -- {r['status']}\n'
+            body += f'{r['side']} {r['qty']} shares of {r['name']} -- {r['status']}\n'
     elif status == 'order failed':
         subject = f'GOATS {currentTime}: Order failed to place!'
         body = 'sorry mate I tried. well you tried a while ago. but i slipped thru haha\n'
@@ -338,6 +343,9 @@ def recordResults(status, receipts=None, func=None, error=None):
         subject = f'GOATS {currentTime}: failed to run!'
         body = f'ran into error at {func}:\n'
         body += error
+    elif status == 'no shelve obj':
+        subject = 'no shelf object'
+        body = ''
     # elif status == 'no orders made':
     #     subject = f'{currentTime}: No signals, no orders made'
     #     body = 'The title says it all :):\n'
@@ -352,8 +360,8 @@ def recordResults(status, receipts=None, func=None, error=None):
 
     # logging.info(subject)
     # logging.info(body)
-    print(subject,'\n', body)
-    # sendEmail(subject, body)
+    # print(subject,'\n', body)
+    sendEmail(subject, body)
 
 def sendEmail(subject, body):
     '''

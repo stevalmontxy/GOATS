@@ -1,5 +1,8 @@
+'''run this script manually'''
 import sys
 sys.path.insert(1,'/home/stevalmontxy/Documents/GitHub/Options-Backtesting-Python/src/')
+import os
+os.chdir('/home/stevalmontxy/Documents/GitHub/Options-Backtesting-Python/src/live')
 
 import goats
 from goats.live_funcs import firstDayInit, recordResults
