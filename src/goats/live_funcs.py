@@ -127,9 +127,9 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     url = f'https://financialmodelingprep.com/api/v3/historical-chart/{dataInterval}/{symbol}?from={startDateFormatted}&to={today}&apikey={FMP_KEY}'
     try:
         data = rq.get(url).json()
-    except:
+    except Exception as error:
         print("failed to request candles")
-        recordResults("gettingdatafailed")
+        recordResults("failed requesting data from FMP", error=str(error))
 
     data = pd.DataFrame(data)
     data['date'] = pd.to_datetime(data['date'])
@@ -171,9 +171,9 @@ def orderMakerLive(orders, underlyingLast, port: Portfolio, receipts, time=None)
             exitDate = findClosestOpenDay(date.today() + timedelta(days=1))
             port.addPosition(o, o.symbol, order['qty'], date.today(), exitDate) # add to portfolio for logging. will be saved and loaded on next code execution
             # print(res.status)
-        except:
+        except Exception as error:
             print("error at order placing")
-            recordResults("order failed")
+            recordResults("failed to submit buy order", error=str(error))
     recordResults("order success", receipts=receipts)
     return port   
 
@@ -317,9 +317,9 @@ def closePosition(pos: Position, orderType, receipts):
         elif orderType=='market':
             res = trade_client.close_position(symbol_or_asset_id=pos.symbol)
         receipts.append({'side': 'sold', 'name': pos.symbol, 'qty': pos.qty, 'status': res.status})
-    except:
+    except Exception as error:
         print('close position failed')
-        recordResults('failed to close order')
+        recordResults('failed to place sell order', error=str(error))
     return  receipts #res
 
 
@@ -346,16 +346,10 @@ def recordResults(status, receipts=None, func=None, error=None):
     elif status == 'no shelve obj':
         subject = 'no shelf object'
         body = ''
-    # elif status == 'no orders made':
-    #     subject = f'{currentTime}: No signals, no orders made'
-    #     body = 'The title says it all :):\n'
-    #     body += f'Data evaluated using latest data from {latestTime} EST.\n'
-    # elif status == 'positions already':
-    #     subject = f'{currentTime}: Already holding a position of {symbol} at ${price: .2f}'
-    #     body = f'Unrealized P/L: ${unrealizedPL: .2f} ({unrealizedPLPC: .2f}%)\n'
     else:
-        subject = 'PROBLEM PROBLEM'
-        body = 'BIG PROBLEM HAPPENED'
+        subject = 'Miscellaneous Error Occured'
+        body = f'Internal error. Status code: {status}\n'
+        body += error
     # body += f'Current portfolio value: ${portfolioVal: .2f}'
 
     # logging.info(subject)
