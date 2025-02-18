@@ -69,7 +69,7 @@ def closingScript():
             recordResults('no shelve obj')
         # read current positions in port, close any if needed
         if port.hasPositions:
-            for p in port.positions:
+            for p in port.positions[:]: # iterate over a copy of port.positions to avoid issue after removing position(s)
                 if p.exitDate == date.today():
                     receipts = closePosition(p, orderType='limit', receipts=receipts) # place exit order on brokerage
                     port.removePosition(p.symbol) # remove from port object
