@@ -2,15 +2,19 @@
 here are all the functions associated with sentiment. I am using the v1 so when I decide in the future
 to derive order sizing differently i can keep this original
 '''
+import numpy as np
 
 
 def calcSentiment(data, t=None):
     '''
     - `dir` = f(previous day move size+direction, static bias, mean reversion, card count, TA)
     - `vol` = f(previous day move size, significant events, card count, TA, time since last big move)
+    For now, this is a bogus function that randomly generates the numbers from a capped normal distribution.
+    I will write this critical function after I finish most of the backtesting functions. I decided to vary the returns
+    at the moment to give some more variety to the testing, as I do have the live sys running on a demo acct
     '''
-    vol = .6 # I did some math
-    dir = .6 # I did some DIFFERENT math
+    vol, dir = np.random.normal(.5, .2, 2) # gen 2 random values
+    vol, dir = np.clip([vol, dir], 0, 1) # cap end values
     return vol, dir
 
 
