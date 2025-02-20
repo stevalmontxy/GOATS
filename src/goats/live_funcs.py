@@ -22,7 +22,7 @@ from .mysecrets import (
     ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER,
     GMAIL_USER, GMAIL_PASS,
     FMP_KEY )
-from .classes import Position, Option, Portfolio, Strategy
+from .classes import Position, Option, Portfolio
 from .sentiment_v1 import calcSentiment, sentiment2order
 
 trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER, paper=True)
@@ -87,8 +87,9 @@ def closingScript():
         print('market out day')
 
 
-def updatePortfolio():
-    '''if you know the stored portfolio object is not in sync w the real portfolio state, run this'''
+def updatePortfolio(updateDB=True):
+    '''if you know the stored portfolio object is not in sync w the real portfolio state, run this
+    if you do NOT want to update the actual portfolio object in the database, you can set updateDB=False to just return the corrected one'''
     with shelve.open("goatsDB") as db:
         port: Portfolio = db.get('portfolio') # using db.get will return None if not found instead of error
         # print('dict at start of program:', dict(db))
@@ -99,19 +100,20 @@ def updatePortfolio():
     positions_broker = trade_client.get_all_positions()
     if port.hasPositions:
         symbols_broker = [p.symbol for p in positions_broker]
-        for p in port.positions:
+        for p in port.positions[:]: # Iterate over a copy to avoid modification issues
             if p.symbol not in symbols_broker:
                 port.removePosition(p.symbol)
     
     if len(positions_broker) > 0:
         symbols_port = [p.symbol for p in port.positions]
-        for p in positions_broker:
+        for p in positions_broker[:]: # Iterate over a copy to avoid modification issues
             if p.symbol not in symbols_port:
                 port.addPosition(p, p.symbol, p.qty, None, None)
 
-    with shelve.open("goatsDB") as db:
-        db.update({'portfolio': port})
-        # print('dict at end of program:', dict(db))
+    if updateDB:
+        with shelve.open("goatsDB") as db:
+            db.update({'portfolio': port})
+    # print('dict at end of program:', dict(db))
     return port # optional return
 
 

@@ -62,8 +62,9 @@ class Portfolio:
 
     def removePosition(self, symbol):
         '''symbol: string'''
-        for i in range(0,len(self.positions)): 
-            if self.positions[i].symbol == symbol:
+        for i, pos in enumerate(self.positions):
+            if pos.symbol == symbol:
+                print("symbol found")
                 self.positions.pop(i)
                 break
 
