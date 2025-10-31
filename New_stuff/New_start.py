@@ -2,44 +2,47 @@
 classes
 APART FROM LIVE AND BT, ALL CLASSES USED IN BOTH IMPLEMENTATTIONS
 livetrader
+-houses live trading infrastructure + brokerage
 backtester
+-constructor -data, strat, starting amts, comissions
 
 portfolio
-trade MAYBE NO
 Order -> has subclasses for each order type
 position
     stock
     option
 
-THINK ABT HOW POSITION, TRADE, ORDER, Stock/option work together
 strategy (this is a parent class/can be ovveridden)
+-init setup
+-next/updates procedures
+
+trade is not a class, "trade" can be name for logging purposes
 MAYBE set a constant LIVE = true, or BACKTEST = true
 if (LIVE), elif (BACKTEST) else throw error
 just in the regular
-live methods not static, live class also has broker attribute
+maybe make it a @dataclass (python's "structs"), same w position, option, stock, order
 
-I/O
-stock and option
-data both PD Dateframe
-timeseries
-can be parsed into uniform format from itnernet or excel/csv
-output trade log
+INPUTS
+stock and option data both PD Dateframe
+can be parsed into uniform format from internet or excel/csv
+OUTPUTS
+trade log
 if backtest, output overall results
+if live, send email updates
 
 BT
 -init
 -setup portfolio
 -declare time
 -loop
-(see below)
+-(see below)
 -end log, make plots
 
 live
 -init
 -get portfolio state everytime
 -maybe compare w expected?
--get time
-perform (see below)
+-(see below)
 
 the "see below" part
 -get price data
@@ -47,13 +50,51 @@ the "see below" part
 -make trades
 -log
 
-strat
--init setup
--next/updates
+BT will probably use hourly or so data.
+live will update at least every 15min, as low as every 5sec
 
-Backtest
--constructor -data, strat, starting amts, comissions
+in more detail:
+BT
+-init bt
+-bt.run(data, starttime, endtime, other stuff)
+    -init portfolio, time
+    -setup signals/data for ALL at once
+    -while(time<endtime)
+        -setup current data
+        -strat.run(current data) on portfolio
+        -increment time
+
+live
+-init portfolio and broker connection
+-refetch portfolio & positions n stuff
+-strat.run()
+    -run indefinitely from market open until market close of day
+
+should I make a subclass psuedotrade?
+
+add ran_today() database var so if it never runs in the day then at anypoint after 3:45 then run it
+
+need to create broker class, will have child classes BTbroker and alpacabroker(live)
+alpacabroker will be mostly a wrapper over the alpaca preexisting API
+bt may need another class just for managing stuff. but for live, maybe it doesn't need its own class
+the rest of implementation can just be standalone functions
+strat will self self.broker = whichever, and can query either one for data as if both are APIs
+strat.porfolio will also have self.broker, which is auto passed in for doing its own portfolio updating
+
+to place a trade, you can either do strat.broker.place_order(), then strat.port.add_order()
+or do like strat.port.place_order(), and call broker from internally. but i think that's more hidden
+maybe best is strat.broker.place_order(), then strat.port.update_port() at the end of multiple orders
+
+first day init no longer neede it'll just be handled as none case in monitor and event
+no more default strat needed. just setup the "default" into the base parent class
+if you want to try variations, make new child classes and overwrite parent methods
+
+.run() should be parallel funcs/methods in BT and live, not in strat
+they will look very similar to the current strat.run()
+
+refine event functionality
 '''
+
 
 #notes from vidieso
 #from 13 min vid
@@ -66,7 +107,7 @@ warnings.filterwarnings("igonre")
 from ibapi.client import EClient
 from ibapi.wrapper import EWrapper
 from ibapi.contract import contract
-from ibapi.order ipmort order
+from ibapi.order import order
 from ibapi.common import bardata
 
 #dual inheriting?!
@@ -76,12 +117,12 @@ class tradingapp(EClient, EWrapper):
         self.data: Dict(int, pd.dataframe) = {}
     
     #parent overload
-    def error:
+    def error():
         pass
 
-    def get_historical_data()
-        self.data[reqID] = pd.dataframe(columns = open high low close time
-        set index = time)
+    def get_historical_data():
+        self.data[reqID] = pd.dataframe(columns = [open, high, low, close, time],
+                                        set_index = time)
         
         self.reqHistoricalData(
             # this is a method from eclient i think
@@ -90,19 +131,18 @@ class tradingapp(EClient, EWrapper):
         time.sleep(3)
         return self.data[reqID]
 
-def historicalData(redID)
+def historicalData(redID):
     #this is another overload that gets thedata from t he reqhistoricadata into the 
     self.data[reqid]
 
 @staticmethod
-get_contract(symbol: str)
+def get_contract(symbol: str):
     #this just turna a stock symbol str into a contract objecty
     contract = contract
     contract.symbol = sytmbol
-    contact.type = :"Stock"
+    contact.type = "Stock"
     contract.currency = "usd"
     return contract
-
 
 
 app = tradingApp()

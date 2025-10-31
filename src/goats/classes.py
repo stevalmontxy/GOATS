@@ -7,7 +7,7 @@ class Portfolio:
     '''
     this holds the properties of the account.
     '''
-    def __init__(self, timesteps=None, initialCapital=100000):
+    def __init__(self, initialCapital=100000):
         self.cash = initialCapital # this is set at instantiation, and changed over time. don't need to track over time
         self.positions = []
         self.acctValue = initialCapital # acct value over time
@@ -15,10 +15,10 @@ class Portfolio:
         self.pseudoorderbook = [] # this is like limit option orders, which I don't actually send until market is near price
 
     # maybe use kwargs to "overload" for options or stock 
-    def addPosition(self, option, symbol, qty, entryDate, entryPrice):
+    def addPosition(self, option, symbol, qty, entryTime, entryPrice):
         '''the symbol entry helps to locate entries a lot easier
-        entry date should be input of date.today(). if position is being updated, it will be None'''
-        pos = Position(option=option, symbol=symbol, entryDate=entryDate, exitDate=exitDate, qty=qty)
+        entryTime should be input of date.today(). if position is being updated, it will be None'''
+        pos = Position(option=option, symbol=symbol, entryTime=entryTime, exitTime=exitTime, qty=qty)
         self.positions.append(pos)
 
     def removePosition(self, symbol):
@@ -36,11 +36,6 @@ class Portfolio:
     def updateAcctValue(self):
         pass
 
-    def getAcctValue(self, cash, positions):
-        # after opening or closing all positions, check what else hasn't been logged, use checkoption value to add them to sum. add cash
-        # acctValue = cash + positions
-        pass
-
     def __repr__(self):
         return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acctValue}"
 
@@ -50,17 +45,21 @@ class Position:
     this allows possibility for stock positions in the future if desired
     orders/trades elsewhere in the portfolio can be linked to positions
     '''
-    def __init__(self, option=None, stock=None, symbol=None, entryDate=None, exitDate=None, qty=1, value=None, posID=0):
+    def __init__(self, option=None, stock=None, is_stock=None, symbol=None, entryTime=None, exitTime=None, qty=1, price=None, posID=0):
         self.option = option
         self.stock = stock
-        self.qty = qty
+        self.is_stock = is_stock
+        self.qty = qty # + indicates long, - indicates short
         self.symbol = symbol
-        self.entryDate = entryDate # date(NOT datetime)
-        self.exitDate = exitDate # date(NOT datetime)
-        self.value = value
-        self.ID = posID # position ID and option ID are both self referenced as ID
+        self.entryTime = entryTime
+        self.exitTime = exitTime
+        self.price = price # can be bid or ask. value is kept at this level. at Stock or Option level, they are only used to identify
+        self.ID = posID # CURRENTLY NOT IN USE position ID and option ID are both self referenced as ID
                         # posID: id number within active positions. an option will be associated with a posID throughout its holding,
                         #        then the posID will be reused by other positions
+
+    def is_long():
+        return (self.qty > 0)
 
     def __repr__(self):
         return (f"Position(ID={self.ID}, symbol='{self.symbol}', qty={self.qty}, "
@@ -70,23 +69,30 @@ class Position:
 
 class Stock:
     '''
-    symbol
-    price
-    def newprice()
+    symbol: symbol (str)
+    bid/ask/price data handled by position/portfolio. this class is mostly an identifier
     '''
-    pass
+    def __init__(self, symbol, symID=0):
+        self.symbol = symbol
+        self.ID = symID # CURRENTLY NOT IN USE
+
+    def __repr__(self):
+        return f"Stock: symbol: {self.symbol}, symID: {self.ID}"
+
 
 class Option:
     '''
     strike: price (float)
     expr: expiration (date, can init as date(time) or str YYYY-MM-DD)
     side: 'call' or 'put' (str)
-    current price() '''
-    def __init__(self, strike, expr, side, optID=0):
+    underlying: underlying stock symbol (str)
+    bid/ask/price data handled by position/portfolio. this class is mostly an identifier'''
+    def __init__(self, strike, expr, side, underlying, optID=0):
         self.strike = strike
         self.expr = expr if isinstance(expr, date) else datetime.strptime(expr, "%Y-%m-%d")
-        self.side = side
-        self.ID = optID # optID is different from posID. referenced as either position.ID or option.ID
+        self.side = side # call or put
+        sefl.underlying = underlying
+        self.ID = optID # CURRENTLY NOT IN USE optID is different from posID. referenced as either position.ID or option.ID
                         # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)
                         # for ex, the 5th option taken by script will have optID of 5, posID of 1, assuming the script holds two at a time, and sells in order
 
@@ -95,155 +101,174 @@ class Option:
 
 
 class Order:
-    pass
+    '''
+    symbol: symbol - using this, can find link to a position (str)
+    is_stock: whether its stock or not (bool)
+    qty: qty (float)
+    # conditional: the variable to beat (pointer/reference?)
+    # minimum: conditional must beat this (float)
+    # conditional and minimum can be manipulated to create all kinds of orders
+    '''
+    def __init__(self, symbol, is_stock, qty, conditional, minimum, ordID=0):
+        self.symbol = symbol
+        self.is_stock = is_stock
+        self.qty = qty # + indicates long, - indicates short
+        # self.conditional = conditional
+        # self.minimum = minimum
+        self.ID = ordID  # CURRENTLY NOT IN USE
+
+    '''check_conditino() all of them need to be moved into like strategy or execution or a standalone function.
+    OR leave them here, and just input what is needed into the method?'''
+    def check_condition(self):
+        return false
+        #maybe they should return either an Order or None
+
+    def __repr__(self):
+        return f"Order: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: {self.conditional}, minimum: {self.minimum}, ordID: {sef.ordID}"
 
 class MarketOrder(Order):
-    pass
+    '''since 1>0, the condition to execute order is always true'''
+    def __init__(self, symbol, is_stock, qty, ordID=0):
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+
+    def check_condition(self):
+        return True
+
+    def __repr__(self):
+        return f"MarketOrder: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: True, ordID: {sef.ordID}"
 
 class LimitOrder(Order):
-    pass
+    def __init__(self, symbol, is_stock, qty, limit_price, ordID=0):
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        self.limit_price = limit_price
+
+    def check_condition(self, price):
+        # price is current price. maybe it should be an address so func has no args?
+        if qty > 0:
+            return price > limit_price
+        else:
+            return price < limit_price
+
+    def __repr__(self):
+        return f"LimitOrder: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: True, ordID: {sef.ordID}"
 
 class StopOrder(Order):
-    pass
+    def __init__(self, symbol, is_stock, qty, stop_price, ordID=0):
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        self.stop_price = stop_price
+
+    def check_condition(self, price):
+        if qty > 0:
+            return price < stop_price
+        else:
+            return price > stop_price
+
+    def __repr__(self):
+        pass
 
 class TrailingStopOrder(Order):
-    pass
+    def __init__(self, symbol, is_stock, qty, trail_nom=None, trail_pc=None, ordID=0):
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        self.trail_nom = trail_nom
+        self.trail_pc = trail_pc
+        if (self.trail_nom and self.trail_pc):
+            raise ValueError("Only provide trail_nom OR trail_pc, not both.")
+        elif (not self.trail_nom and not self.trail_pc):
+            raise ValueError("Provide trail_nom OR trail_pc.")
+        self.trail_price = None
+
+    def check_condition(self, price):
+        if qty > 0:
+            self.trail_price = min(self.trail_price, price*(1+self.trail_pc), price+self.trail_nom)
+            return price > self.trail_price
+        else:
+            self.trail_price = max(self.trail_price, price*(1-self.trail_pc), price-self.trail_nom)
+            return price < self.trail_price
+
+    def __repr__(self):
+        pass
 
 class SLTPOrder(Order):
-    pass
+    def __init__(self, symbol, is_stock, qty, sl=None, tp=None, ordID=0):
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        self.sl = sl
+        self.tp = tp
 
-class CinchingTrailingOrder(Order):
-    '''maybe dynamic trailing order
-    cinching trailing order
-    honing trailing'''
-    pass
+    def check_condition(self, price):
+        if qty > 0:
+            return (price > self.tp) or (price > self.sl)
+        else:
+            return (price < self.tp) or (price < self.sl)
 
+    def __repr__(self):
+        pass
+
+class DynamicTrailingOrder(Order):
+    '''
+    this order type is more of an "position exit strategy"
+    it's like a trailing stop where the trailing
+    amt is variable based on a few inputs and adjustable params
+    a: param for init_trail_pc: it starts as a trailing at this level
+    b: param for vol: volatility of price
+    c: param for upward_vol: vol in position dir - vol against position dir
+    d: param for rec_price_velo: recent price "velocity" -- I might set this as a function i.e. d = f(rec_price_velo)
+    '''
+    def __init__(self, symbol, is_stock, qty, a, b, c, d, ordID=0):
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        self.a = a
+        self.b = b
+        self.c = c
+        self.d = d 
+
+    def check_condition(self, price, init_trail_pc, vol, upward_vol, rec_price_velo):
+        pass
+
+    def __repr__(self):
+        pass
+
+def my_function(x: int, y: int) -> float:
+    pass
 
 class Strategy:
     '''
-    this class is a parent class, in actual usage (backtest and live), this will get ovverriden by mystrat_x and that will be used
-    Strategy() is a class that is used for the backtester. while the BT class handles things related to data and time,
-    the Strategy class houses the backtesting equivalents of the primary functions, and the execute() method handles the scheduler part
-    calcSentiment: function from sentiment script. designed to be be swappable
-    sentiment2order: function from sentiment script
-    morningSchedRun: time to run morning script (currently none) in 24hr str
-    closingSchedRun: time to run closing script in 24hr str
-            '''
-    def __init__(self, calcSentiment=calcSentiment, sentiment2order=sentiment2order, morningSchedRun=None, closingSchedRun="15:30"):
-        # self.f = f not yet
-        self.calcSentiment = calcSentiment
-        self.sentiment2order = sentiment2order
-        self.morningSchedRun = morningSchedRun
-        self.closingSchedRun = closingSchedRun
+    this class is a parent class, in actual usage (backtest and live), this will get ovverriden
+     by mystrat_x(Strategy)
+     monitor_trades(): this gets run constantly when market is open
+     the rest: get called sequentially when it's time to enter new positions. 
+                this is done step by step by live/BT'''
+    def __init__(self, broker: Broker, portfolio: Portfolio):
+        self.portfolio = portfolio
+        self.portfolio.updatePortfolio()
     
-    '''
-here are all the functions associated with sentiment. I am using the v1 so when I decide in the future
-to derive order sizing differently i can keep this original
-'''
-# import numpy as np
+    # this is gonna exist in live and BT not here
+    def run(self):
+        while true:
+            self.monitor_trades()
+            self.check_trigger_event()
+            # send smth to BT/live to say to wait or increment timestep 
 
-    def execute(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''this script acts the same as crontab on the live running system. it executes the scheduled scripts as their scheduled times. Assu
-        After I finish basic setup, the script will start doing things like monitoring price throughout day, selling before close, holding longer,
-        adding "deviations"
-
-
-
-        I WAS WORKING HERE
-        BASICALLY, I think first daya init is done and I need to do clsoing scirpt. I am staying in strategy class, and will worry abt backtesting class next
-        datecurrent: datetime: to get the right data
-        '''
-        # get morning data
-        # currentOptionsdf, currentUnderlydf = self.selectData(dateCurrent, self.morningSchedrun, optionsdf, underlydf)
-        # self.morningScript(currentOptionsdf, currentUnderlydf)
-        # get closeing data
-        currentOptionsdf, currentUnderlydf = self.selectData(dateCurrent, self.closingSchedRun, optionsdf, underlydf)
-        self.closingScript(currentOptionsdf, currentUnderlydf)  
-
-    def firstDayInit(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''This is a script for when there are no positions. runs in place of morning script, no closing script that day'''
-        # calc vol and dir
-        # since no positions,
-        # buy positions
-        # log to trade list in portfolio
-        underlydfCurrent, latestPrice = self.selectData()
-        vol, dir = self.calcSentiment(underlydfCurrent)
-        orders = sentiment2order(vol, dir)
-        trade_log = []
-        port, trade_log = orderMakerBT(orders, latestPrice, port, trade_log)
-        return port, trade_log
-        
-    def closingScript(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''script that executes near close of the day, granted those positions have been held for more than a day (to not trigger PDT rule)'''
-        # at EOD, sell the ones from previous day. ye. or hold.  ye.
-        if portfolio.hasPositions:
-            # check current positions-> calc implied sentiment from portfolio
-            # calc new vol and dir
-            vol = self.Sentiment.calcVol(1,1)
-            dir = self.Sentiment.calcDir(1,1)
+    def check_trigger_event(self):
+        if time == '3:45': # or early close day near end
+            self.closing_event()
             
-            morningTimeObj = datetime.strptime(self.morningSchedrun, "%H:%M").time()
-            time = datetime.combine(dateCurrent.date(), morningTimeObj)
 
-            call = vol*dir
-            put  = vol*(1-dir)
-            callqty = 1
-            putqty=1
-            '''
-            I will def want to put another func here to find the right positinos n stuff
-            '''
-            ID = 1
-            ID2 = 2
-            call = Option(12,12,12,ID)
-            put= Option(13,13,13,ID2)
-            portfolio.openPosition(time, callqty, call)
-            portfolio.openPosition(time, putqty, put)
-            #  based on differences, decied how to modify and close n shit
-        pass
-   
-    def selectData():
+    def monitor_trades(self) -> List[Order]:
+        '''this one runs at every time step. given live quotes, return any orders that need to be sent'''
+        # orderbook = []
+        # use self.portfolio.orders, loop through their conditionals
+        #this includes querying for quotes of things that would need it
+        #if any satisified, add to orders list
+        # at end return order list (will usually be empty/None)
         pass
 
-    '''
-    def morningScript(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''         '''
-        datecurrent: for logging pursposes
-        optionsdf: is ONLY for the current time. options data
-        underlydf: is OHLC data for the last while of underlying stock
-        portfolio: holds the current positions, capital, trade log, ye
-        '''         '''
-        if portfolio.hasPositions:
-            # check current positions-> calc implied sentiment from portfolio
-            # calc new vol and dir
-            vol = self.Sentiment.calcVol(1,1)
-            dir = self.Sentiment.calcDir(1,1)
-            
-            morningTimeObj = datetime.strptime(self.morningSchedrun, "%H:%M").time()
-            time = datetime.combine(dateCurrent.date(), morningTimeObj)
+    def create_signals(self, data: pd.Dataframe) -> pd.Dataframe:
+        '''this adds signals and returns data to function to use to make orders'''
 
-            call = vol*dir
-            put  = vol*(1-dir)
-            callqty = 1
-            putqty=1
-            #I will def want to put another func here to find the right positions n stuff
-            ID = 1
-            ID2 = 2
-            call = Option(12,12,12,ID)
-            put= Option(13,13,13,ID2)
-            portfolio.openPosition(time, callqty, call)
-            portfolio.openPosition(time, putqty, put)
-            #  based on differences, decied how to modify and close n shit
-        else:
-            self.firstDayInit(dateCurrent, optionsdf, underlydf, portfolio) '''
-
-
-class defaultStrat(Strategy):
-    '''this is the ideal implementation of it
-    vol and dir are defined here. and how to get thema re defined here. but the basic funcs are defined in parent class
-    def make signals()
-    def choose what to buy()
-    then these act on portfolio via order -> trade
-    '''
+    def closing_event(self):
+        self.create_signals()
+        self.signals2sentiment()
+        self.sentiment2order()
+        self.place_orders()
 
     def calcSentiment(data, t=None):
         '''
@@ -256,7 +281,6 @@ class defaultStrat(Strategy):
         vol, dir = np.random.normal(.5, .2, 2) # gen 2 random values
         vol, dir = np.clip([vol, dir], 0, 1) # cap end values
         return vol, dir
-
 
     def sentiment2order(vol, dir):
         ''' converts vol and dir (sentiment) into a relative order'''
@@ -291,21 +315,3 @@ class defaultStrat(Strategy):
         for vol_threshold, dir_threshold, orders in conditions:
             if vol < vol_threshold and dir < dir_threshold:
                 return orders()
-
-from dataclasses import dataclass
-
-@dataclass
-class Trade:
-    '''
-    only used for backtest logging
-    symbol, qty, price, side, timestamp, order, pnl
-    after bt finish running, convert to pd dataframe'''
-    pass
-
-class Backtest:
-    '''
-    comision, starting val
-    include tradelog (dataclass)
-    log each: timestamp, realized pnl, unrealized pnl, current equity'''
-    pass
-        # self.trade_log = []

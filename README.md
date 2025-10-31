@@ -1,12 +1,15 @@
-# Glorious Options Automated Trading Strategy (GOATS) Overview
+# Glorious Options Automated Trading System (GOATS) Overview
 ### Conception and principle
-I have been trading options for a while now, and having previously created algorithmic trading systems that use technical analysis. However, my coding has improved and I like options, and wanted to go for something more challenging. Here is the big challenge that I have been thinking up for a while now. Essentially I wanted to build my personal trading strategy into an automated system, with a few tweaks. Being automated will give it some disadvantages to a human, but will have many advantages also. It can't "think" past some (not so) simple rules, but, it can check the market nonstop, factor in a ton of things evenly, and has no problem and never gets tired of doing sizing calculations. It can hold many positions and keep track of each ones exit, and do complicated things that would take a good amount of effort for me to personally keep track of while balancing school and life. You could def argue that the time to ponder and write the system is probably huge, and it definitely is. But I have been thoroughly enjoying it. I have built a system that is quite complex, self operating, but also, has room and I have plans to continually upgrade and add depth to the bot's systems.
+I have been trading options for a while now, and having previously created algorithmic trading systems for stocks and forex that use technical analysis. However, my coding has improved and I like options, and wanted to go for something more challenging. GOATS is a pet project of mine with custom infrastructure to backtest and deploy more complex strategies designed for options. Instead of running once Here is the big challenge that I have been thinking up for a while now. Essentially I wanted to build my personal trading strategy into an auto every hour or 15 minutes, I want this system to run during market hours, subscribing to live quotes and constantly checking its criteria for entry/exit.
 
+In the past I have utilized backtesting packages and created my own more simple trading systems,and I know there are preexisting systems for backtesting on options, but a big motivation for making this is I think it will be a good exercise of making a larger coding project for me, where I can do some OOP.
 
-
+### Current state of the project
+If you're reading this, I am in the middle of a large restructuring. Getting it back to a running system means: running live and backtesting scripts both utilizing the SAME core classes, with only minor differences in how they use the backtesting and live classes. Afterward, my future plans for the project are continual refinement and eventually testing some machine learning stuff.
 
 ### Overall Layout
-__4__ different scripts:
+[outdated]
+[add architecture diagram and call heirarchy from ipad]
 - One that runs in morning (buying time)
 - one that runs right after buying time (or it could be part of buying time) to confirm successful order fill. or it could keep running until order filled
 - one that runs near end of day (selling time)
@@ -16,7 +19,7 @@ __4__ different scripts:
 
 
 ### Insides of strategy
-  
+[outdated]
 #### Vol and Dir functions (part of sentiment class)
 - Volatility is a function of previous day move size, significant events, card count(like from blackjack. I am still working this idea out), technical analysis (TA, though I will try to minimize its use), time since last big move
     - can be multidimensional (defined using a distribution, not a singular value)
@@ -37,19 +40,8 @@ __4__ different scripts:
 
 
 
-
-[have a timeline diagram to show the standard procedure and deviations]
-
-
-
-
 ### Implementation
-Once up and running, I plan to run the code on a linux machine setup for CI/CD on a cheap laptop I bought.
-
-
-
-### continuous integration and continuous deployment
-So evidently there is a ton of stuff I can work on and add to the system. There will always be things to research and add to the vol and dir calcs, and the strategy may change with its deviations. so it's really important that I make the code be able to be changed in terms of structure and stuff down the line.
+Creating new strategies will be as easy as creating a new Strategy child class, and overriding the desired methods. This can easily then run in backtesting, and swapped into the live running setup. For me, my live running setup will be a cheap lightweight linux setup.
 
 
 
@@ -63,16 +55,15 @@ on archlinux, access with "crontab -e"
 
 ```bash
 # CRONTAB runs on laptop's timezone
-#* 10 * * * python /home/stevalmontxy/Documents/Programming/tester.py
-#* * * * * echo "helloworld"
 45 15 * * 1-5 python /home/stevalmontxy/Documents/GitHub/Options-Backtesting-Python/src/live/run_closing_script.py
 45 15 * * 7 python /home/stevalmontxy/Documents/Programming/tester.py
 ```
 
 ### Sources that helped me
-systematic trading (robert carver) - overall framework   
-the leverage space trading model (ralph vince) - helped in sizing   
-trading in the zone (mark douglas) - helped with my discretionary trading that I incorporated into the system  
-bayesian statistics the fun way (will kurt) - helped with analysis and hypothesis testing  
-option volatility and pricing (sheldon natenberg) - of course  
-backtesting.py package - I took a lot of reference from this
+- systematic trading (robert carver) - overall framework   
+- the leverage space trading model (ralph vince) - helped in sizing   
+- trading in the zone (mark douglas) - helped with my discretionary trading that I incorporated into the system  
+- bayesian statistics the fun way (will kurt) - helped with analysis and hypothesis testing  
+- option volatility and pricing (sheldon natenberg) - of course  
+- backtesting.py package
+- alpaca API docs
