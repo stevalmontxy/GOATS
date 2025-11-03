@@ -1,10 +1,15 @@
 # .csv and .txt added to exclude large options chains files
 *.csv
-*.txt
-# omit my api keys
-mysecrets.py
+aapl_30x_202307.txt
+
+#also, no longer using mysecrets.py, moved API keys to .env
+
+#ignore folder with old code and other project reference code
+references/
+
 #omit my storage for shelves
 goatsDB*
+
 # everything else below is from the default .gitignore for python repos
 
 # Byte-compiled / optimized / DLL files

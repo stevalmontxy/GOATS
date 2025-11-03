@@ -2,6 +2,13 @@
 from datetime import datetime, timedelta
 from .classes import Portfolio
 
+class Backtest:
+    '''
+    comision, starting val
+    include tradelog (dataclass)
+    log each: timestamp, realized pnl, unrealized pnl, current equity'''
+    pass
+        # self.trade_log = []
 
 def firstDayInitBT():
     pass
@@ -145,118 +152,3 @@ class Backtest:
 
     def plot(self):
         pass
-
-
-from .sentiment_v1 import calcSentiment, sentiment2order
-'''These are the default functions to import into Strategy. 
-In the future if sentiment V2 exists, these can be replaced during class initialization'''
-
-class Strategy:
-    '''
-    Strategy() is a class that is used for the backtester. while the BT class handles things related to data and time,
-    the Strategy class houses the backtesting equivalents of the primary functions, and the execute() method handles the scheduler part
-    calcSentiment: function from sentiment script. designed to be be swappable
-    sentiment2order: function from sentiment script
-    morningSchedRun: time to run morning script (currently none) in 24hr str
-    closingSchedRun: time to run closing script in 24hr str
-            '''
-    def __init__(self, calcSentiment=calcSentiment, sentiment2order=sentiment2order, morningSchedRun=None, closingSchedRun="15:30"):
-        # self.f = f not yet
-        self.calcSentiment = calcSentiment
-        self.sentiment2order = sentiment2order
-        self.morningSchedRun = morningSchedRun
-        self.closingSchedRun = closingSchedRun
-    
-    def execute(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''this script acts the same as crontab on the live running system. it executes the scheduled scripts as their scheduled times. Assu
-        After I finish basic setup, the script will start doing things like monitoring price throughout day, selling before close, holding longer,
-        adding "deviations"
-
-
-
-        I WAS WORKING HERE
-        BASICALLY, I think first daya init is done and I need to do clsoing scirpt. I am staying in strategy class, and will worry abt backtesting class next
-        datecurrent: datetime: to get the right data
-        '''
-        # get morning data
-        # currentOptionsdf, currentUnderlydf = self.selectData(dateCurrent, self.morningSchedrun, optionsdf, underlydf)
-        # self.morningScript(currentOptionsdf, currentUnderlydf)
-        # get closeing data
-        currentOptionsdf, currentUnderlydf = self.selectData(dateCurrent, self.closingSchedRun, optionsdf, underlydf)
-        self.closingScript(currentOptionsdf, currentUnderlydf)  
-
-    def firstDayInit(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''This is a script for when there are no positions. runs in place of morning script, no closing script that day'''
-        # calc vol and dir
-        # since no positions,
-        # buy positions
-        # log to trade list in portfolio
-        underlydfCurrent, latestPrice = self.selectData()
-        vol, dir = self.calcSentiment(underlydfCurrent)
-        orders = sentiment2order(vol, dir)
-        trade_log = []
-        port, trade_log = orderMakerBT(orders, latestPrice, port, trade_log)
-        return port, trade_log
-        
-    def closingScript(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''script that executes near close of the day, granted those positions have been held for more than a day (to not trigger PDT rule)'''
-        # at EOD, sell the ones from previous day. ye. or hold.  ye.
-        if portfolio.hasPositions:
-            # check current positions-> calc implied sentiment from portfolio
-            # calc new vol and dir
-            vol = self.Sentiment.calcVol(1,1)
-            dir = self.Sentiment.calcDir(1,1)
-            
-            morningTimeObj = datetime.strptime(self.morningSchedrun, "%H:%M").time()
-            time = datetime.combine(dateCurrent.date(), morningTimeObj)
-
-            call = vol*dir
-            put  = vol*(1-dir)
-            callqty = 1
-            putqty=1
-            '''
-            I will def want to put another func here to find the right positinos n stuff
-            '''
-            ID = 1
-            ID2 = 2
-            call = Option(12,12,12,ID)
-            put= Option(13,13,13,ID2)
-            portfolio.openPosition(time, callqty, call)
-            portfolio.openPosition(time, putqty, put)
-            #  based on differences, decied how to modify and close n shit
-        pass
-   
-    def selectData():
-        pass
-
-    '''
-    def morningScript(self, dateCurrent, optionsdf, underlydf, portfolio):
-        '''         '''
-        datecurrent: for logging pursposes
-        optionsdf: is ONLY for the current time. options data
-        underlydf: is OHLC data for the last while of underlying stock
-        portfolio: holds the current positions, capital, trade log, ye
-        '''         '''
-        if portfolio.hasPositions:
-            # check current positions-> calc implied sentiment from portfolio
-            # calc new vol and dir
-            vol = self.Sentiment.calcVol(1,1)
-            dir = self.Sentiment.calcDir(1,1)
-            
-            morningTimeObj = datetime.strptime(self.morningSchedrun, "%H:%M").time()
-            time = datetime.combine(dateCurrent.date(), morningTimeObj)
-
-            call = vol*dir
-            put  = vol*(1-dir)
-            callqty = 1
-            putqty=1
-            #I will def want to put another func here to find the right positions n stuff
-            ID = 1
-            ID2 = 2
-            call = Option(12,12,12,ID)
-            put= Option(13,13,13,ID2)
-            portfolio.openPosition(time, callqty, call)
-            portfolio.openPosition(time, putqty, put)
-            #  based on differences, decied how to modify and close n shit
-        else:
-            self.firstDayInit(dateCurrent, optionsdf, underlydf, portfolio) '''

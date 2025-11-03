@@ -46,7 +46,7 @@ Creating new strategies will be as easy as creating a new Strategy child class, 
 
 
 ### Setup
-[still in progress] If you want to run this yourself, you will need some files that I have .gitignored away. for backtesting, you will need your own data. I got mine off of OptionsDX. for live implementation, you will need a mysecrets.py file with your API keys, and a .env file with your project root directory. I think the last thing is just to make sure you keep the significant_dates file kept up to date. for live execution, then only one necessary is the one in /src/live. Should be it.
+[still in progress] If you want to run this yourself, you will need some files that I have .gitignored away. for backtesting, you will need your own data. I got mine off of OptionsDX. for live implementation, you will need a .env file with your API keys and project root directory. I think the last thing is just to make sure you keep the significant_dates file kept up to date. for live execution, then only one necessary is the one in /src/live. Should be it.
 
 
 ##### Setup-cron
