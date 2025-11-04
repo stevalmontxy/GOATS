@@ -1,38 +1,29 @@
-def AlpacaBoker(Broker):
-    # everythign currently below will find its way into this class
+from .broker import Broker
+from ..core.core_objects import Portfolio
+
+import requests as rq
+from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
+from alpaca.data.historical.stock import StockHistoricalDataClient, StockLatestTradeRequest
+from alpaca.trading.client import TradingClient, GetAssetsRequest
+from alpaca.trading.enums import AssetStatus, ContractType, OrderSide, OrderType, TimeInForce, QueryOrderStatus, OrderStatus
+from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest, GetCalendarRequest
+
+trade_client = TradingClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER, paper=True)
+stock_data_client = StockHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
+option_data_client = OptionHistoricalDataClient(api_key=ALPACA_API_KEY_PAPER, secret_key=ALPACA_SECRET_KEY_PAPER)
+
+# local imports
+from .mysecrets import (
+    ALPACA_API_KEY_PAPER, ALPACA_SECRET_KEY_PAPER,
+    GMAIL_USER, GMAIL_PASS,
+    FMP_KEY )
+
+def AlpacaBroker(Broker):
+    # everything currently below will find its way into this class
     pass
 
 
 ### CURRENTLY THIS IS A BIG DUMP FROM now deleted live_funcs.py
-
-def updatePortfolio(updateDB=True):
-    '''if you know the stored portfolio object is not in sync w the real portfolio state, run this
-    if you do NOT want to update the actual portfolio object in the database, you can set updateDB=False to just return the corrected one'''
-    with shelve.open("goatsDB") as db:
-        port: Portfolio = db.get('portfolio') # using db.get will return None if not found instead of error
-        # print('dict at start of program:', dict(db))
-
-    if port == None: # make a new port object
-        port = Portfolio()
-    
-    positions_broker = trade_client.get_all_positions()
-    if port.hasPositions:
-        symbols_broker = [p.symbol for p in positions_broker]
-        for p in port.positions[:]: # Iterate over a copy to avoid modification issues
-            if p.symbol not in symbols_broker:
-                port.removePosition(p.symbol)
-    
-    if len(positions_broker) > 0:
-        symbols_port = [p.symbol for p in port.positions]
-        for p in positions_broker[:]: # Iterate over a copy to avoid modification issues
-            if p.symbol not in symbols_port:
-                port.addPosition(p, p.symbol, p.qty, None, None)
-
-    if updateDB:
-        with shelve.open("goatsDB") as db:
-            db.update({'portfolio': port})
-    # print('dict at end of program:', dict(db))
-    return port # optional return
 
 
 def createUnderlydf(symbol, dataInterval, dataPeriod): 

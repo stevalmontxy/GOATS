@@ -7,15 +7,19 @@ livetrader
 backtester
 -constructor -data, strat, starting amts, comissions
 
-portfolio
-Order -> has subclasses for each order type
-position
-    stock
-    option
-
-strategy (this is a parent class/can be ovveridden)
--init setup
--next/updates procedures
+Portfolio
+Order -> has subclasses for each order type.
+ - new pseudo attribute flags if an order is actually in brokerage or not, and if needs to be monitored
+Position
+    Stock
+    Option
+Broker
+ - this class handles interactions between strategy, portfolio, and the outside environment (bt or live)
+ - btbroker and alpacabroker subclass override to handle their environments
+Strategy (this is a parent class/can be ovveridden)
+ - init setup
+ - next/updates procedures
+ - serves as the commander for most things, though the live script and bt class are higher in command
 
 trade is not a class, "trade" can be name for logging purposes
 MAYBE set a constant LIVE = true, or BACKTEST = true
@@ -71,8 +75,6 @@ live
 -strat.run()
     -run indefinitely from market open until market close of day
 
-should I make a subclass psuedotrade?
-
 add ran_today() database var so if it never runs in the day then at anypoint after 3:45 then run it
 
 need to create broker class, will have child classes BTbroker and alpacabroker(live)
@@ -85,6 +87,9 @@ strat.porfolio will also have self.broker, which is auto passed in for doing its
 to place a trade, you can either do strat.broker.place_order(), then strat.port.add_order()
 or do like strat.port.place_order(), and call broker from internally. but i think that's more hidden
 maybe best is strat.broker.place_order(), then strat.port.update_port() at the end of multiple orders
+ACTUALLY I think best would be strat.place_order() which internally would use broker to place an order 
+    and then call port.add_order() or whatever is needed. So like- strategy handles the calls.
+    its methods are rly simple since they just call broker and port actual methods
 
 first day init no longer neede it'll just be handled as none case in monitor and event
 no more default strat needed. just setup the "default" into the base parent class
@@ -94,4 +99,6 @@ if you want to try variations, make new child classes and overwrite parent metho
 they will look very similar to the current strat.run()
 
 refine event functionality
+
+later go through and convert all snackCase to pascal_case
 '''

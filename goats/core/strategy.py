@@ -6,20 +6,9 @@ class Strategy:
      the rest: get called sequentially when it's time to enter new positions. 
                 this is done step by step by live/BT'''
     def __init__(self, broker: Broker, portfolio: Portfolio):
+        self.broker = broker
         self.portfolio = portfolio
-        self.portfolio.updatePortfolio()
-    
-    # this is gonna exist in live and BT not here
-    def run(self):
-        while true:
-            self.monitor_trades()
-            self.check_trigger_event()
-            # send smth to BT/live to say to wait or increment timestep 
-
-    def check_trigger_event(self):
-        if time == '3:45': # or early close day near end
-            self.closing_event()
-            
+        # self.portfolio.updatePortfolio() #assume its initialized with an up to date portfolio
 
     def monitor_trades(self) -> List[Order]:
         '''this one runs at every time step. given live quotes, return any orders that need to be sent'''
@@ -30,14 +19,29 @@ class Strategy:
         # at end return order list (will usually be empty/None)
         pass
 
-    def create_signals(self, data: pd.Dataframe) -> pd.Dataframe:
-        '''this adds signals and returns data to function to use to make orders'''
+    def check_trigger_event(self):
+        if time == '3:45': # or early close day near end
+            self.closing_event()      
 
     def closing_event(self):
         self.create_signals()
         self.signals2sentiment()
         self.sentiment2order()
         self.place_orders()
+
+    def place_order(self):
+        info = 1 #info
+        self.broker.place_order(info)
+        self.portfolio.add_order(info)
+
+    def cancel_order(self):
+        info = 1 #info
+        self.broker.cancel_order(info)
+        self.portfolio.remove_order(info)
+
+
+    def create_signals(self, data: pd.Dataframe) -> pd.Dataframe:
+        '''this adds signals and returns data to function to use to make orders'''
 
     def calcSentiment(data, t=None):
         '''

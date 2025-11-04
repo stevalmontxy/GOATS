@@ -5,14 +5,20 @@ import pandas as pd
 
 class Portfolio:
     '''
-    this holds the properties of the account.
+    broker: this is the "brokerage" that will be used to fetch data and stuff
+    cash: aka buying power
+    acct_value: cash+ positions
+    positions: list that holds Position objects
+    orderbook: list that holds real orders
+    pseudo_orderbook: list that holds "pseudo" orders- these are things that strat monitors, and submits a real order upon condition
     '''
-    def __init__(self, initialCapital=100000):
-        self.cash = initialCapital # this is set at instantiation, and changed over time. don't need to track over time
+    def __init__(self, broker):
+        self.broker = broker
+        self.cash = 0.0
+        self.acct_value = 0.0
         self.positions = []
-        self.acctValue = initialCapital # acct value over time
         self.orderbook = []
-        self.pseudoorderbook = [] # this is like limit option orders, which I don't actually send until market is near price
+        self.pseudo_orderbook = []
 
     # maybe use kwargs to "overload" for options or stock 
     def addPosition(self, option, symbol, qty, entryTime, entryPrice):
@@ -22,19 +28,64 @@ class Portfolio:
         self.positions.append(pos)
 
     def removePosition(self, symbol):
-        '''symbol: string'''
+        '''only removes position from portfolio object
+        removing from broker is handled by stratgey
+        symbol: string'''
         for i, pos in enumerate(self.positions):
             if pos.symbol == symbol:
                 print("symbol found")
                 self.positions.pop(i)
                 break
 
+    def add_order(self):
+        pass
+
+    def remove_order(self):
+        pass
+
+    def updateAcctValue(self):
+        self.cash, self.acct_value = self.broker.get_acct_value()
+
+    def update_portfolio(self):
+        '''will sync portfolio to its current status. works with a brand
+        new portfolio as well as a preexisting outdated one
+        the reason to manually check instead of just replacing the whole list is bc local stores some metadata'''
+        positions_broker = self.broker.get_positions()
+        if self.hasPositions:
+            symbols_broker = [p.symbol for p in positions_broker]
+            for p in self.positions[:]: # Iterate over a copy to avoid modification issues
+                if p.symbol not in symbols_broker:
+                    self.removePosition(p.symbol)
+
+        if len(positions_broker) > 0:
+            symbols_port = [p.symbol for p in self.positions]
+            for p in positions_broker[:]:
+                if p.symbol not in symbols_port:
+                    self.addPosition(p, p.symbol, p.qty, None, None)
+
+        orders_broker = self.broker.get_orderbook()
+        if self.has_orders:
+            symbols_broker = [o.symbol for o in orders_broker]
+            for o in self.orderbook[:]:
+                if o.symbol not in symbols_broker:
+                    self.remove_order(o.symbol)
+
+        if len(orders_broker) > 0:
+            symbols_port = [p.symbol for p in self.positions]
+            for o in orders_broker[:]:
+                if o.symbol not in symbols_port:
+                    self.add_order(o, o.symbol, o.qty, None, None)
+        
+        self.updateAcctValue()
+        return self # optional return
+
     @property
     def hasPositions(self):
         return len(self.positions) > 0
-    
-    def updateAcctValue(self):
-        pass
+
+    @property
+    def has_orders(self):
+        return len(self.orderbook) > 0
 
     def __repr__(self):
         return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acctValue}"
@@ -58,6 +109,7 @@ class Position:
                         # posID: id number within active positions. an option will be associated with a posID throughout its holding,
                         #        then the posID will be reused by other positions
 
+    @property
     def is_long():
         return (self.qty > 0)
 
@@ -91,7 +143,7 @@ class Option:
         self.strike = strike
         self.expr = expr if isinstance(expr, date) else datetime.strptime(expr, "%Y-%m-%d")
         self.side = side # call or put
-        sefl.underlying = underlying
+        self.underlying = underlying
         self.ID = optID # CURRENTLY NOT IN USE optID is different from posID. referenced as either position.ID or option.ID
                         # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)
                         # for ex, the 5th option taken by script will have optID of 5, posID of 1, assuming the script holds two at a time, and sells in order
@@ -105,19 +157,18 @@ class Order:
     symbol: symbol - using this, can find link to a position (str)
     is_stock: whether its stock or not (bool)
     qty: qty (float)
-    # conditional: the variable to beat (pointer/reference?)
-    # minimum: conditional must beat this (float)
-    # conditional and minimum can be manipulated to create all kinds of orders
+    pseudo: whether an order is actually in the broker or it has to be manually entered as a limit at the right time (bool)
     '''
-    def __init__(self, symbol, is_stock, qty, conditional, minimum, ordID=0):
+    def __init__(self, symbol, is_stock, qty, pseudo=False, ordID=0):
         self.symbol = symbol
         self.is_stock = is_stock
         self.qty = qty # + indicates long, - indicates short
         # self.conditional = conditional
         # self.minimum = minimum
+        self.pseudo = pseudo # bool, whether it's a "pseudo or no"
         self.ID = ordID  # CURRENTLY NOT IN USE
 
-    '''check_conditino() all of them need to be moved into like strategy or execution or a standalone function.
+    '''check_condition() all of them need to be moved into like strategy or execution or a standalone function.
     OR leave them here, and just input what is needed into the method?'''
     def check_condition(self):
         return false
@@ -127,7 +178,7 @@ class Order:
         return f"Order: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: {self.conditional}, minimum: {self.minimum}, ordID: {sef.ordID}"
 
 class MarketOrder(Order):
-    '''since 1>0, the condition to execute order is always true'''
+    '''just a market order'''
     def __init__(self, symbol, is_stock, qty, ordID=0):
         super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
 
@@ -139,7 +190,7 @@ class MarketOrder(Order):
 
 class LimitOrder(Order):
     def __init__(self, symbol, is_stock, qty, limit_price, ordID=0):
-        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=not is_stock, ordID=0)
         self.limit_price = limit_price
 
     def check_condition(self, price):
@@ -154,7 +205,7 @@ class LimitOrder(Order):
 
 class StopOrder(Order):
     def __init__(self, symbol, is_stock, qty, stop_price, ordID=0):
-        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=not is_stock, ordID=0)
         self.stop_price = stop_price
 
     def check_condition(self, price):
@@ -168,7 +219,7 @@ class StopOrder(Order):
 
 class TrailingStopOrder(Order):
     def __init__(self, symbol, is_stock, qty, trail_nom=None, trail_pc=None, ordID=0):
-        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=not is_stock, ordID=0)
         self.trail_nom = trail_nom
         self.trail_pc = trail_pc
         if (self.trail_nom and self.trail_pc):
@@ -190,7 +241,7 @@ class TrailingStopOrder(Order):
 
 class SLTPOrder(Order):
     def __init__(self, symbol, is_stock, qty, sl=None, tp=None, ordID=0):
-        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=not is_stock, ordID=0)
         self.sl = sl
         self.tp = tp
 
@@ -214,7 +265,7 @@ class DynamicTrailingOrder(Order):
     d: param for rec_price_velo: recent price "velocity" -- I might set this as a function i.e. d = f(rec_price_velo)
     '''
     def __init__(self, symbol, is_stock, qty, a, b, c, d, ordID=0):
-        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, ordID=0)
+        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=True, ordID=0)
         self.a = a
         self.b = b
         self.c = c
@@ -225,6 +276,3 @@ class DynamicTrailingOrder(Order):
 
     def __repr__(self):
         pass
-
-def my_function(x: int, y: int) -> float:
-    pass
