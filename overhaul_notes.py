@@ -5,7 +5,7 @@ APART FROM LIVE AND BT, ALL CLASSES USED IN BOTH IMPLEMENTATTIONS
 livetrader
 -houses live trading infrastructure + brokerage
 backtester
--constructor -data, strat, starting amts, comissions
+-constructor -data, strat, starting amts, commissions
 
 Portfolio
 Order -> has subclasses for each order type.

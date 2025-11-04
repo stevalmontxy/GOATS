@@ -26,21 +26,21 @@ def AlpacaBroker(Broker):
 ### CURRENTLY THIS IS A BIG DUMP FROM now deleted live_funcs.py
 
 
-def createUnderlydf(symbol, dataInterval, dataPeriod): 
+def create_underly_df(symbol, data_interval, data_period): 
     '''
     Creates a simple dataframe of candlesticks (OHLC) of live stock data
     symbol: str
-    dataInterval: str ('1hour')
-    dataPeriod: int (number of days desired)'''
+    data_interval: str ('1hour')
+    data_period: int (number of days desired)'''
     today = date.today().strftime('%Y-%m-%d')
-    startDate = date.today() - timedelta(days=dataPeriod)
-    startDateFormatted = startDate.strftime('%Y-%m-%d')
-    url = f'https://financialmodelingprep.com/api/v3/historical-chart/{dataInterval}/{symbol}?from={startDateFormatted}&to={today}&apikey={FMP_KEY}'
+    start_date = date.today() - timedelta(days=data_period)
+    start_date_formatted = start_date.strftime('%Y-%m-%d')
+    url = f'https://financialmodelingprep.com/api/v3/historical-chart/{data_interval}/{symbol}?from={start_date_formatted}&to={today}&apikey={FMP_KEY}'
     try:
         data = rq.get(url).json()
     except Exception as error:
         print("failed to request candles")
-        recordResults("failed requesting data from FMP", error=str(error))
+        record_results("failed requesting data from FMP", error=str(error))
 
     data = pd.DataFrame(data)
     data['date'] = pd.to_datetime(data['date'])
@@ -48,9 +48,9 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     data.columns = data.columns.str.capitalize()
     data=data[::-1] # reverse order of FMP candles
 
-    startDate = data.index.strftime('%Y-%m-%d %H:%M:%S')[0] ## Get the latest datetime used in format '2023-12-19 15:30:00'
-    endDate = data.index.strftime('%Y-%m-%d %H:%M:%S')[-1] ## Get the latest datetime used in format '2023-12-19 15:30:00'
-   
+    start_date = data.index.strftime('%Y-%m-%d %H:%M:%S')[0] ## Get the latest datetime used in format '2023-12-19 15:30:00'
+    end_date = data.index.strftime('%Y-%m-%d %H:%M:%S')[-1] ## Get the latest datetime used in format '2023-12-19 15:30:00'
+
     # data=data.reset_index(drop=True) # will remove datetime index and create 0-length indices
     # data.drop('Volume', axis = 1, inplace = True) # remove volume
     
@@ -61,70 +61,70 @@ def createUnderlydf(symbol, dataInterval, dataPeriod):
     # data = data.join(YYBandss)
 
     # if data.index.hour[row] == marketOpenHour or data['fullScalar'].iloc[row] > params.scalarCutoff: # if its an open, or slope is too steep
-    return data, data.Close.iloc[-1], startDate, endDate
+    return data, data.Close.iloc[-1], start_date, end_date
 
 
-def orderMakerLive(orders, underlyingLast, port: Portfolio, receipts, time=None):
-    '''     orders: List of dictionaries, each containing strikeDist, exprDist, side, qty;
+def order_maker_live(orders, underlying_last, port: Portfolio, receipts, time=None):
+    '''     orders: List of dictionaries, each containing strike_dist, expr_dist, side, qty;
             example:        orders = [
-                                {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1},
-                                {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1} ]
+                                {'strike_dist': 1, 'expr_dist': 2, 'side': 'call', 'qty': 1},
+                                {'strike_dist': -1, 'expr_dist': 2, 'side': 'put', 'qty': 1} ]
     '''
     for order in orders:
-        goalStrike = underlyingLast + order['strikeDist']
-        goalExpr = date.today() + timedelta(days=order['exprDist'])
-        option = Option(goalStrike, goalExpr, order['side'])
+        goal_strike = underlying_last + order['strike_dist']
+        goal_expr = date.today() + timedelta(days=order['expr_dist'])
+        option = Option(goal_strike, goal_expr, order['side'])
         # print('option date', option.expr, type(option.expr))
-        o = findClosestOption(option)
+        o = find_closest_option(option)
         try:
-            res = optionsLimitOrder(o, order['qty'])
+            res = options_limit_order(o, order['qty'])
             receipts.append({'side': 'bought', 'name': o.name, 'qty': order['qty'], 'status': res.status})
-            exitDate = findClosestOpenDay(date.today() + timedelta(days=1))
-            port.addPosition(o, o.symbol, order['qty'], date.today(), exitDate) # add to portfolio for logging. will be saved and loaded on next code execution
+            exit_date = find_closest_open_day(date.today() + timedelta(days=1))
+            port.add_position(o, o.symbol, order['qty'], date.today(), exit_date) # add to portfolio for logging. will be saved and loaded on next code execution
             # print(res.status)
         except Exception as error:
             print("error at order placing")
-            recordResults("failed to submit buy order", error=str(error))
-    recordResults("order success", receipts=receipts)
+            record_results("failed to submit buy order", error=str(error))
+    record_results("order success", receipts=receipts)
     return port   
 
 
-def findClosestOption(Option: Option):
+def find_closest_option(option: Option):
     '''
     finds live option that best matches desired strike and expiration
-    Option: an object from the Option class'''
-    min_expiration = Option.expr
-    max_expiration = Option.expr + timedelta(days=5)
+    option: an object from the Option class'''
+    min_expiration = option.expr
+    max_expiration = option.expr + timedelta(days=5)
 
-    min_strike = str(round(Option.strike*.97,2))
-    max_strike = str(round(Option.strike*1.03,2))
+    min_strike = str(round(option.strike*.97,2))
+    max_strike = str(round(option.strike*1.03,2))
 
-    options_chain_list = optionsChainReq("SPY", Option.side, None, min_expiration, max_expiration,  min_strike, max_strike) # get a lot of em
+    options_chain_list = options_chain_req("SPY", option.side, None, min_expiration, max_expiration,  min_strike, max_strike) # get a lot of em
 
     # find market day closest to desired expiration
-    dayFound = False
-    while not dayFound:
+    day_found = False
+    while not day_found:
         for o in options_chain_list:
             # print(o.expiration_date, Option.expr.date(), o.expiration_date == Option.expr.date(), type(o.expiration_date), type(Option.expr.date()))
-            if o.expiration_date == Option.expr:
-                dayFound = True
+            if o.expiration_date == option.expr:
+                day_found = True
                 break
-        if o.expiration_date != Option.expr:
-            Option.expr += timedelta(days=1)
+        if o.expiration_date != option.expr:
+            option.expr += timedelta(days=1)
 
-    options_chain_list_reduced = optionsChainReq("SPY", Option.side, Option.expr, None, None,  min_strike, max_strike) # get only on correct day
+    options_chain_list_reduced = options_chain_req("SPY", option.side, option.expr, None, None,  min_strike, max_strike) # get only on correct day
     # find option closest to desired strike
-    priceDiff = 100
+    price_diff = 100
     for o in options_chain_list_reduced:
-        if  abs(o.strike_price-Option.strike) < priceDiff:
-            priceDiff=abs(o.strike_price-Option.strike)
+        if  abs(o.strike_price-option.strike) < price_diff:
+            price_diff=abs(o.strike_price-option.strike)
             closestOpt = o
 
     # print(closestOpt)
     return closestOpt
 
 
-def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
+def options_chain_req(underlying_symbol, side, expiration_date=None, min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
     '''
     Get an options chain that satisifies given criteria.
     This function can handle if the chain is over 1 page (100 options) long
@@ -173,21 +173,21 @@ def optionsChainReq(underlying_symbol, side, expiration_date=None, min_expiratio
     return options_chain_list
 
 
-def findClosestOpenDay(date):
+def find_closest_open_day(date):
     '''given a date, it will return the soonest market open date
     date: datetime.date
     note: in the future i might want to make this take an input of how many days timedelta'''
-    endDate = date + timedelta(days=4)
-    req = GetCalendarRequest(start=date, end=endDate)
+    end_date = date + timedelta(days=4)
+    req = GetCalendarRequest(start=date, end=end_date)
     res = trade_client.get_calendar(req)
 
-    openDays = [day.date for day in res]
-    while date not in openDays:
+    open_days = [day.date for day in res]
+    while date not in open_days:
         date += timedelta(days=1)
     return date
 
 
-def optionsLimitOrder(option, qty):
+def options_limit_order(option, qty):
     '''option: just how it is output from alpaca
     qty: float or int    '''
     option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=option.symbol)
@@ -208,10 +208,10 @@ def optionsLimitOrder(option, qty):
     return res # optional return
     
 
-def closePosition(pos: Position, orderType, receipts):
-    '''this is a separate function than optionsLimitOrder bc it takes a different type of input'''
+def close_position(pos: Position, order_type, receipts):
+    '''this is a separate function than options_limit_order bc it takes a different type of input'''
     try:
-        if orderType == 'limit':
+        if order_type == 'limit':
             option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=pos.symbol)
             option_quote = option_data_client.get_option_latest_quote(request_params=option_quote_request)
             mid_price = round((option_quote[pos.symbol].bid_price + option_quote[pos.symbol].ask_price)/2,2)
@@ -225,10 +225,10 @@ def closePosition(pos: Position, orderType, receipts):
                 time_in_force = TimeInForce.DAY )
 
             res = trade_client.submit_order(req)
-        elif orderType=='market':
+        elif order_type=='market':
             res = trade_client.close_position(symbol_or_asset_id=pos.symbol)
         receipts.append({'side': 'sold', 'name': pos.symbol, 'qty': pos.qty, 'status': res.status})
     except Exception as error:
         print('close position failed')
-        recordResults('failed to place sell order', error=str(error))
+        record_results('failed to place sell order', error=str(error))
     return  receipts #res
