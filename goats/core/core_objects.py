@@ -9,16 +9,16 @@ class Portfolio:
     cash: aka buying power
     acct_value: cash+ positions
     positions: list that holds Position objects
-    orderbook: list that holds real orders
-    pseudo_orderbook: list that holds "pseudo" orders- these are things that strat monitors, and submits a real order upon condition
+    open_orders: list that holds real orders
+    pseudo_orders: list that holds "pseudo" orders- these are things that strat monitors, and submits a real order upon condition
     '''
     def __init__(self, broker):
         self.broker = broker
         self.cash = 0.0
         self.acct_value = 0.0
         self.positions = []
-        self.orderbook = []
-        self.pseudo_orderbook = []
+        self.open_orders = []
+        self.pseudo_orders = []
 
     # maybe use kwargs to "overload" for options or stock 
     def add_position(self, option, symbol, qty, entry_time, entry_price):
@@ -63,10 +63,10 @@ class Portfolio:
                 if p.symbol not in symbols_port:
                     self.add_position(p, p.symbol, p.qty, None, None)
 
-        orders_broker = self.broker.get_orderbook()
+        orders_broker = self.broker.get_open_order()
         if self.has_orders:
             symbols_broker = [o.symbol for o in orders_broker]
-            for o in self.orderbook[:]:
+            for o in self.open_orders[:]:
                 if o.symbol not in symbols_broker:
                     self.remove_order(o.symbol)
 
@@ -85,7 +85,7 @@ class Portfolio:
 
     @property
     def has_orders(self):
-        return len(self.orderbook) > 0
+        return len(self.open_orders) > 0
 
     def __repr__(self):
         return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acctValue}"
@@ -276,3 +276,7 @@ class DynamicTrailingOrder(Order):
 
     def __repr__(self):
         pass
+
+class DeltaOrder:
+    '''not related to primary order class. used as input to create a real order'''
+    pass

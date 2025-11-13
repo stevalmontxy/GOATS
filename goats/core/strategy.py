@@ -12,7 +12,7 @@ class Strategy:
 
     def monitor_trades(self) -> List[Order]:
         '''this one runs at every time step. given live quotes, return any orders that need to be sent'''
-        # orderbook = []
+        # open_orders = []
         # use self.portfolio.orders, loop through their conditionals
         #this includes querying for quotes of things that would need it
         #if any satisified, add to orders list
@@ -31,7 +31,8 @@ class Strategy:
 
     def place_order(self):
         info = 1 #info
-        self.broker.place_order(info)
+        orders = self.broker.delta_order_to_orders(deltas)
+        self.broker.place_order(orders)
         self.portfolio.add_order(info)
 
     def cancel_order(self):
