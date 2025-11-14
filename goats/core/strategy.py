@@ -11,7 +11,10 @@ class Strategy:
         # self.portfolio.updatePortfolio() #assume its initialized with an up to date portfolio
 
     def monitor_trades(self) -> List[Order]:
-        '''this one runs at every time step. given live quotes, return any orders that need to be sent'''
+        '''this one runs at every time step.
+        given live quotes, check current trades.
+        place any orders necessary.
+        output orders or whatever for logging purposes'''
         # open_orders = []
         # use self.portfolio.orders, loop through their conditionals
         #this includes querying for quotes of things that would need it
@@ -20,6 +23,7 @@ class Strategy:
         pass
 
     def check_trigger_event(self):
+        '''output whatver for logging purposes'''
         if time == '3:45': # or early close day near end
             self.closing_event()
 
@@ -28,6 +32,7 @@ class Strategy:
         self.signals2sentiment()
         self.sentiment2order()
         self.place_orders()
+        # return any necessary outputs up to check_trigger_event() for logging
 
     def place_order(self):
         info = 1 #info

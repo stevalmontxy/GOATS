@@ -21,19 +21,14 @@ Strategy (this is a parent class/can be ovveridden)
  - next/updates procedures
  - serves as the commander for most things, though the live script and bt class are higher in command
 
-trade is not a class, "trade" can be name for logging purposes
-MAYBE set a constant LIVE = true, or BACKTEST = true
-if (LIVE), elif (BACKTEST) else throw error
-just in the regular
-maybe make it a @dataclass (python's "structs"), same w position, option, stock, order
-
 INPUTS
-stock and option data both PD Dateframe
-can be parsed into uniform format from internet or excel/csv
+-stock and option data from internet or local both parsed into uniform format (PD Dateframe)
+-data handled by broker class and given to strat
 OUTPUTS
-trade log
-if backtest, output overall results
-if live, send email updates
+-broker classes don't handle output, they only handle data input into strat/port
+-strat methods can output things up to backtesting class or live script for recording
+    -backtesting: trades are stored into a list and outputted at the end, also output to file
+    -live script: trades are logged in .log and occasionally emailed
 
 BT
 -init
@@ -77,10 +72,6 @@ live
 
 add ran_today() database var so if it never runs in the day then at anypoint after 3:45 then run it
 
-need to create broker class, will have child classes BTbroker and alpacabroker(live)
-alpacabroker will be mostly a wrapper over the alpaca preexisting API
-bt may need another class just for managing stuff. but for live, maybe it doesn't need its own class
-the rest of implementation can just be standalone functions
 strat will self self.broker = whichever, and can query either one for data as if both are APIs
 strat.porfolio will also have self.broker, which is auto passed in for doing its own portfolio updating
 
@@ -96,9 +87,18 @@ no more default strat needed. just setup the "default" into the base parent clas
 if you want to try variations, make new child classes and overwrite parent methods
 
 .run() should be parallel funcs/methods in BT and live, not in strat
-they will look very similar to the current strat.run()
 
 refine event functionality
 
-later go through and convert all snackCase to pascal_case
+structural tweaks to consider
+-maybe make position, option, stock, order all  @dataclass (python's "structs")
+-base broker should be an abstract class? and define methods as @abstractmethod
+-delta_orders can be list of dicts like it previously was, don’t need a class for it
+-api keys and TRADING_MODE constant will be stored in env, so if you wanna switch between em you 
+    just need to change that var in .env, not touch code. in testing script, you can override the constant,
+    and in any needed case you can rerun initialize_clients() to switch it
+
+minor changes to make
+later go through and convert all single quotes '''''' to dbl quotes """"""
+ensure 2 lines between class defs, 1 line between methods, 2 lines between top level funcs
 '''

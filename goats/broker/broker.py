@@ -12,6 +12,7 @@ class Broker:
 #Also, consider making this an abstract base class class Broker(ABC),
 # and define methods as @abstractmethod. doesn't rly change functionality but makes sense to do
     # === Fetching Data ===
+
     def get_stock_data(self, symbols, timeframe, num_candles):
         pass
         # return pd.dataframe(?)
@@ -31,6 +32,7 @@ class Broker:
         # return datetime
 
     # === Executing Orders ===
+
     def place_orders(self, orders):
         '''works for single order or multiple orders'''
         if type == Limit:
@@ -51,12 +53,20 @@ class Broker:
         pass
         # return res
 
+    def cancel_order(self, order):
+        '''works for single order or multiple orders'''
+        pass
+
+    def cancel_all_orders(self):
+        pass
+
     def close_positions(self, symbols):
         '''works for single order or multiple orders'''
         pass
         # return res
 
     # === Querying Portfolio ===
+
     def get_open_orders(self):
         pass
         # return list of orders
@@ -65,7 +75,10 @@ class Broker:
         pass
         # return list of positions
 
-    def get_acct_value(self):
-    # def get_acct_value(self) -> tuple[float, float]:
+    def get_acct_details(self):
         pass
-        # return cash, acct_value, buying_power
+        # accout = request account
+        # clean it up into what i want
+        # acct = {"cash": account.json().cash, acct_value, buying_power}
+        # return acct
+        # then this dict format is easy to match on my btbroker end
