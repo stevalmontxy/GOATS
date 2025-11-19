@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, date
 import numpy as np
 import pandas as pd
-
+from dataclasses import dataclass
 
 class Portfolio:
     '''
@@ -90,66 +90,60 @@ class Portfolio:
     def __repr__(self):
         return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acctValue}"
 
-
-class Position:
-    '''This is just kinda an intermediary between portfolio -> position -> option.
-    this allows possibility for stock positions in the future if desired
-    orders/trades elsewhere in the portfolio can be linked to positions
-    '''
-    def __init__(self, option=None, stock=None, is_stock=None, symbol=None, entry_time=None, exit_time=None, qty=1, price=None, pos_ID=0):
-        self.option = option
-        self.stock = stock
-        self.is_stock = is_stock
-        self.qty = qty # + indicates long, - indicates short
-        self.symbol = symbol
-        self.entry_time = entry_time
-        self.exit_time = exit_time
-        self.price = price # can be bid or ask. value is kept at this level. at Stock or Option level, they are only used to identify
-        self.ID = pos_ID # CURRENTLY NOT IN USE position ID and option ID are both self referenced as ID
-                        # posID: id number within active positions. an option will be associated with a posID throughout its holding,
-                        #        then the posID will be reused by other positions
-
-    @property
-    def is_long():
-        return (self.qty > 0)
-
-    def __repr__(self):
-        return (f"Position(ID={self.ID}, symbol='{self.symbol}', qty={self.qty}, "
-                f"entry_date={self.entry_date}, exit_date={self.exit_date}, "
-                f"option={self.option}, stock={self.stock})")
-
-
+@dataclass
 class Stock:
-    '''
-    symbol: symbol (str)
-    bid/ask/price data handled by position/portfolio. this class is mostly an identifier
-    '''
-    def __init__(self, symbol, sym_ID=0):
-        self.symbol = symbol
-        self.ID = sym_ID # CURRENTLY NOT IN USE
-
-    def __repr__(self):
-        return f"Stock: symbol: {self.symbol}, symID: {self.ID}"
+    '''bid/ask/price data handled by position/portfolio'''
+    symbol: str
+    # self.ID = sym_ID # CURRENTLY NOT IN USE
+    # def __init__(self, symbol, sym_ID=0):
 
 
+@dataclass
 class Option:
-    '''
-    strike: price (float)
-    expr: expiration (date, can init as date(time) or str YYYY-MM-DD)
-    side: 'call' or 'put' (str)
-    underlying: underlying stock symbol (str)
-    bid/ask/price data handled by position/portfolio. this class is mostly an identifier'''
-    def __init__(self, strike, expr, side, underlying, opt_ID=0):
-        self.strike = strike
-        self.expr = expr if isinstance(expr, date) else datetime.strptime(expr, "%Y-%m-%d")
-        self.side = side # call or put
-        self.underlying = underlying
-        self.ID = opt_ID # CURRENTLY NOT IN USE optID is different from posID. referenced as either position.ID or option.ID
-                        # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)
-                        # for ex, the 5th option taken by script will have optID of 5, posID of 1, assuming the script holds two at a time, and sells in order
+    '''bid/ask/price data handled by position/portfolio
+    side: call or put '''
+    strike: float
+    expr: datetime
+    side: str
+    underlying: str
+    symbol: str = None
+    # def __init__(self, strike, expr, side, underlying, opt_ID=0):
+    # self.ID = opt_ID # CURRENTLY NOT IN USE optID is different from posID. referenced as either position.ID or option.ID
+                    # optID: id number of option, never to be reused throughout a backtest (or lifetime unless reset maybe)
+                    # for ex, the 5th option taken by script will have optID of 5, posID of 1, assuming the script holds two at a time, and sells in order
 
-    def __repr__(self):
-        return f"Option: strike: ${self.strike}, expr: {self.expr}, side: {self.side}, optID: {self.ID}"
+            #        then the posID will be reused by other positions
+
+
+@dataclass
+class Position:
+    '''This is an intermediary between portfolio -> position -> option.'''
+    symbol: str 
+    is_stock: bool
+    qty: float = 1 # + indicates long, - indicates short
+    stock: Stock = None 
+    option: Option = None 
+    entry_time: datetime = None
+    exit_time: datetime = None
+    price: float = None # can be bid or ask. value is kept at this level. at Stock or Option level, they are only used to identify
+    # def __init__(self, option=None, stock=None, is_stock=None, symbol=None, 
+    # entry_time=None, exit_time=None, qty=1, price=None, pos_ID=0):
+    # ID: int = 0 # CURRENTLY NOT IN USE position ID and option ID are both self referenced as ID
+            # posID: id number within active positions. an option will be associated with a posID throughout its holding,
+            #        then the posID will be reused by other positions
+
+
+@dataclass
+class Account:
+    cash: float
+    buying_power: float
+    portfolio_value: float
+
+
+@dataclass
+class DeltaOrder:
+    '''not related to primary order class. used as input to create a real order'''
+    pass
 
 
 class Order:
@@ -189,7 +183,8 @@ class MarketOrder(Order):
         return f"MarketOrder: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: True, ord_ID: {sef.ord_ID}"
 
 class LimitOrder(Order):
-    def __init__(self, symbol, is_stock, qty, limit_price, ord_ID=0):
+    '''Limit price can be provided, or if None, will automatically get a quote'''
+    def __init__(self, symbol, is_stock, qty, limit_price=None, ord_ID=0):
         super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=not is_stock, ord_ID=0)
         self.limit_price = limit_price
 
@@ -201,7 +196,7 @@ class LimitOrder(Order):
             return price < limit_price
 
     def __repr__(self):
-        return f"LimitOrder: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: True, ord_ID: {sef.ord_ID}"
+        return f"LimitOrder: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: True, ord_ID: {self.ID}"
 
 class StopOrder(Order):
     def __init__(self, symbol, is_stock, qty, stop_price, ord_ID=0):
@@ -276,7 +271,3 @@ class DynamicTrailingOrder(Order):
 
     def __repr__(self):
         pass
-
-class DeltaOrder:
-    '''not related to primary order class. used as input to create a real order'''
-    pass
