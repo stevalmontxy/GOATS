@@ -6,11 +6,7 @@ class Broker:
     '''this parent class provides the structure for how the system interacts 
     with the outside world, be it the brokerage in live deployment
     or the historica data in backtesting. this class is made to be overwritten'''
-    # def __init__(self):
-    #     pass
-    # you can delete if fully not needed
-#Also, consider making this an abstract base class class Broker(ABC),
-# and define methods as @abstractmethod. doesn't rly change functionality but makes sense to do
+
     # === Fetching Data ===
 
     def get_stock_data(self, symbols, timeframe, num_candles):
@@ -21,13 +17,12 @@ class Broker:
         pass
         # return pd.dataframe(?)
 
-    def find_closest_option(self):
+    def get_closest_option(self):
         '''find option that best matches desired strike and expiration'''
-        self.get_options_chain()
         pass
         # return closest option
 
-    def get_closest_open_day(self):
+    def get_closest_open_date(self):
         pass
         # return datetime
 
@@ -35,10 +30,6 @@ class Broker:
 
     def place_orders(self, orders):
         '''works for single order or multiple orders'''
-        if type == Limit:
-            pass
-        elif type == other:
-            raise NotImplementedError("Only doing limit orders for now")
         pass
         # return res
         # return res's can be used by live to confirm working and also record results
@@ -77,8 +68,3 @@ class Broker:
 
     def get_acct_details(self):
         pass
-        # accout = request account
-        # clean it up into what i want
-        # acct = {"cash": account.json().cash, acct_value, buying_power}
-        # return acct
-        # then this dict format is easy to match on my btbroker end

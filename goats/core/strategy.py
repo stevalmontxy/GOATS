@@ -15,20 +15,28 @@ class Strategy:
         given live quotes, check current trades.
         place any orders necessary.
         output orders or whatever for logging purposes'''
-        # open_orders = []
-        # use self.portfolio.orders, loop through their conditionals
-        #this includes querying for quotes of things that would need it
-        #if any satisified, add to orders list
-        # at end return order list (will usually be empty/None)
-        pass
+        new_orders = []
+        for o in self.portfolio.pseudo_orders:
+            price = self.broker.get_latest_quote(o.symbol) # maybe this is bid, ask
+            if (o.check_condition(price)):
+                new_orders.append(o)
+        if new_orders:
+            place_orders(new_orders)
+
+        for o in self.portfolio.orders:
+            # see if any real orders have been open for over a minute,
+        #   if they have, "chase" the price (resubmit but at current bid/ask range)
+            pass
 
     def check_trigger_event(self):
         '''output whatver for logging purposes'''
         if time == '3:45': # or early close day near end
             self.closing_event()
+        if time >= '4:00':
+            break # make sure this fully breaks the big loop
 
     def closing_event(self):
-        self.create_signals()
+        self.create_signals() # uses historic data
         self.signals2sentiment()
         self.sentiment2order()
         self.place_orders()
