@@ -13,9 +13,15 @@ class Broker:
         pass
         # return pd.dataframe(?)
 
+    def get_latest_quote(self):
+        pass
+
     def get_options_chain(self, underlying):
         pass
         # return pd.dataframe(?)
+
+    def get_options_contracts(self):
+        pass
 
     def get_closest_option(self):
         '''find option that best matches desired strike and expiration'''
@@ -55,6 +61,9 @@ class Broker:
         '''works for single order or multiple orders'''
         pass
         # return res
+
+    def close_all_positions(self):
+        pass
 
     # === Querying Portfolio ===
 

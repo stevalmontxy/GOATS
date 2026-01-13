@@ -168,8 +168,8 @@ class Order:
         return false
         #maybe they should return either an Order or None
 
-    def __repr__(self):
-        return f"Order: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: {self.conditional}, minimum: {self.minimum}, ord_ID: {sef.ord_ID}"
+    # def __repr__(self):
+        # return f"Order: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: {self.conditional}, minimum: {self.minimum}, ord_ID: {sef.ord_ID}"
 
 class MarketOrder(Order):
     '''just a market order'''

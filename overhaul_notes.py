@@ -70,34 +70,44 @@ live
 -strat.run()
     -run indefinitely from market open until market close of day
 
+BT RESPONSIBILITIES
+
+BT Class roles:
+manage pseudo time
+run strategy at each time
+track positions in portfolio
+track entries/exits -> trade log
+handle commisions -> log final trade PL
+
+BT broker roles:
+get data for signals and order prices
+keep its own 'online' tally of ords & pos for when queried
+calculate NAV( get_acct_details)
+
 add ran_today() database var so if it never runs in the day then at anypoint after 3:45 then run it
 
 strat will self self.broker = whichever, and can query either one for data as if both are APIs
 strat.porfolio will also have self.broker, which is auto passed in for doing its own portfolio updating
 
-to place a trade, you can either do strat.broker.place_order(), then strat.port.add_order()
-or do like strat.port.place_order(), and call broker from internally. but i think that's more hidden
-maybe best is strat.broker.place_order(), then strat.port.update_port() at the end of multiple orders
-ACTUALLY I think best would be strat.place_order() which internally would use broker to place an order 
-    and then call port.add_order() or whatever is needed. So like- strategy handles the calls.
-    its methods are rly simple since they just call broker and port actual methods
+trades are handled by strat class. srat.place_order() will call broker.place_order() and 
+then call port.add_order() or whatever is needed. So like- strategy handles the calls.
 
 first day init no longer neede it'll just be handled as none case in monitor and event
 no more default strat needed. just setup the "default" into the base parent class
 if you want to try variations, make new child classes and overwrite parent methods
+
+-api keys and TRADING_MODE constant will be stored in env, switch between modes by changing the const
+    - in any needed case you can switch modes by rerunning initialize_clients()
 
 .run() should be parallel funcs/methods in BT and live, not in strat
 
 refine event functionality
 
 structural tweaks to consider
--maybe make position, option, stock, order all  @dataclass (python's "structs")
 -base broker should be an abstract class? and define methods as @abstractmethod
 -delta_orders can be list of dicts like it previously was, don’t need a class for it
--api keys and TRADING_MODE constant will be stored in env, so if you wanna switch between em you 
-    just need to change that var in .env, not touch code. in testing script, you can override the constant,
-    and in any needed case you can rerun initialize_clients() to switch it
 
+make all datetime usage import datetime as dt, and do dt.datetime, dt....
 minor changes to make
 later go through and convert all single quotes '''''' to dbl quotes """"""
 ensure 2 lines between class defs, 1 line between methods, 2 lines between top level funcs

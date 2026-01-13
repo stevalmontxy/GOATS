@@ -7,22 +7,21 @@ class Backtest:
     commission, starting val
     include tradelog (dataclass)
     log each: timestamp, realized pnl, unrealized pnl, current equity'''
-    def __init__(self, broker, portfolio, strategy, options_df, underly_df, commission_pct=0, commission_nom=0, initial_cash=100000, margin=1):
-        self.broker = broker
-        self.portfolio = portfolio
-        self.strat = strategy
-        self.options_df = options_df
-        self.underly_df = underly_df
+    # def __init__(self, broker, portfolio, strategy, options_df, underly_df, commission_pct=0, commission_nom=0, initial_cash=100000, margin=1):
+    def __init__(self, strategy, options_df, underly_df, commission_pct=0, commission_nom=0, initial_cash=100000, margin=1):
+        self.broker = BTBroker(options_df=options_df, underly_df=underly_df, initial_cash=initial_cash)
+        self.portfolio = Portfolio(initial_cash=initial_cash) # portfolio class
+        self.strat = strategy # Strategy class
         self.commission_pct = commission_pct # percent
         self.commission_nom = commission_nom # or nominal amount
-        self.initial_cash = initial_cash
         self.margin = margin
-        # self.trade_log = []
+        self.trade_log = [] # logs entries and exits
+        self.nav_log = [] # logs NAV at end of each day
 
     def import_data(options_data, underly_data):
         # change out underly_df or options_df
-        self.options_df = options_data
-        self.underly_df = underly_data
+        self.broker.options_df = options_data
+        self.broker.underly_df = underly_data
 
     def set_strat(self, strat):
         self.strat = strat
@@ -55,14 +54,26 @@ class Backtest:
             while date_current not in self.options_df["[QUOTE_DATE]"].values:
                 date_current += timedelta(days=1)
 
-            self.Strategy.execute(self, date_current, self.options_df, self.underly_df, portfolio)
+            strat.monitor_trades()
+            strat.check_trigger_event()
+            # time += 1hr
+            self.nav_log.append(self.broker.get_acct_details.nav)         
             date_current += timedelta(days=1)
         # return stats, equity_plot, portfolio, trade_log
-
-        # for loop through time
-            # strat.monitor_trades()
-            # strat.check_trigger_event()
-            # time += 1hr   
+    # END OF RUN()
+    
+    def calculate_commission(self, trade_value):
+        """
+        Calculate the commission for a trade.
+        :param trade_value: The dollar value of the trade.
+        :return: The commission as a float.
+        """
+        if self.commission_pct:
+            return trade_value * self.commission_pct
+        elif self.commission_nom:
+            return self.commission_nom
+        else:
+            return 0  # Default if no commission is specified    
 
     def plot_profit(self):
         pass
@@ -73,5 +84,5 @@ class Backtest:
     def plot_signals(self):
         pass
 
-    # def optimize(self,data, property, market, strategy, params):
+    # def optimize(self, data, property, market, strategy, params):
         # pass

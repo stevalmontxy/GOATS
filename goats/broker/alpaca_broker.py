@@ -73,18 +73,8 @@ class AlpacaBroker(Broker):
     def get_latest_quote(self, symbol=None, Stock=None, Option=None):
         '''returns latest quote (bid ask, etc), intake is very flexible
         for now this function is not in use or fully written'''
-        if self.quote_source != 'alpaca_rest':
-            raise NotImplementedError # for now only doing REST, streaming is a possible later todo
-        # if symbol:
-        #     if len(symbol) < 6:
-        #         pass # its a stock
-        #     else:
-        #         pass # its an option
-        # elif Stock:
-        #     pass # get quote for stock
-        # elif Option:
-        #     pass # get quote for option
-        # return quote
+        # if self.quote_source != 'alpaca_rest':
+        raise NotImplementedError
 
     def get_options_chain(self, underlying_symbol, side, expiration_date=None, min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
         '''skipping for now''' 
@@ -113,6 +103,7 @@ class AlpacaBroker(Broker):
             strike_price_lte=str(max_strike),
             limit=1000, # specifiy limit   STILL NEEDA FINISHT HIS HERE KEEP GOING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!~!~~~~~~~~~~~~~~
             # next is switching to get options_chainriequest in optionsclient not trading client
+            # and make a return one that has pd.dataframe
             page_token=None
         )
         res = self.trade_client.get_option_contracts(req)
