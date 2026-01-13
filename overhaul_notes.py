@@ -82,11 +82,11 @@ handle commisions -> log final trade PL
 BT broker roles:
 get data for signals and order prices
 keep its own 'online' tally of ords & pos for when queried
-calculate NAV( get_acct_details)
+calculate NAV (get_acct_details)
 
 add ran_today() database var so if it never runs in the day then at anypoint after 3:45 then run it
 
-strat will self self.broker = whichever, and can query either one for data as if both are APIs
+strat will self.broker = whichever, and can query either one for data as if both are APIs
 strat.porfolio will also have self.broker, which is auto passed in for doing its own portfolio updating
 
 trades are handled by strat class. srat.place_order() will call broker.place_order() and 
@@ -99,7 +99,7 @@ if you want to try variations, make new child classes and overwrite parent metho
 -api keys and TRADING_MODE constant will be stored in env, switch between modes by changing the const
     - in any needed case you can switch modes by rerunning initialize_clients()
 
-.run() should be parallel funcs/methods in BT and live, not in strat
+.run() should be parallel funcs/methods in BT notebook and live script, not in strat
 
 refine event functionality
 
@@ -107,8 +107,8 @@ structural tweaks to consider
 -base broker should be an abstract class? and define methods as @abstractmethod
 -delta_orders can be list of dicts like it previously was, don’t need a class for it
 
-make all datetime usage import datetime as dt, and do dt.datetime, dt....
 minor changes to make
-later go through and convert all single quotes '''''' to dbl quotes """"""
-ensure 2 lines between class defs, 1 line between methods, 2 lines between top level funcs
+-make all datetime usage import datetime as dt, and do dt.datetime, dt....
+-later go through and convert all single quotes '''''' to dbl quotes """"""
+-ensure 2 lines between class defs, 1 line between methods, 2 lines between top level funcs
 '''

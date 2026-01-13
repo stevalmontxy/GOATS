@@ -1,5 +1,5 @@
 # Standard Imports
-from datetime import date, datetime, timedelta
+import datetime as dt
 
 # Third Party Imports
 import pandas as pd
@@ -18,20 +18,14 @@ from ..core.core_objects import Account, Stock, Option, Order, LimitOrder, Posit
 
 # shelve is handled fully in live script
 # api keys are imported in the live script/testing script
+# emailing/recording/logging results is handled in the live script
 
 class AlpacaBroker(Broker):
-    '''this parent class provides the structure for how the system interacts 
-    with the outside world, be it the brokerage in live deployment
-    or the historica data in backtesting. this class is made to be overwritten
-    so it only stores 1 set of api keys, and paper is required to be set by the user everytime
-    its up to the user to make sure the api keys and paper var match.
-    api_key 
-    secret_key 
-    paper  # bool
-    trade_client
-    stock_data_client
-    option_data_client
-    this class doesn't handle email/record results. that's in the live script. live script can also use logging'''
+    '''AlpacaBroker is how the strategy/portfolio classes interact 
+    with market data or account orders and positions. Once initialized,
+    its methods can be called without reauthenticating. it only stores 1 set
+    of api keys, and the paper var has no defaults, ensuring the user sets the 
+    api keys and paper var carefully. '''
     def __init__(self, api_key, secret_key, paper):
         self.api_key = api_key
         self.secret_key = secret_key
@@ -39,7 +33,7 @@ class AlpacaBroker(Broker):
         self.initialize_clients(api_key, secret_key, paper)
 
     def initialize_clients(self, api_key, secret_key, paper):
-        '''This is a live broker specific method
+        '''AlpacaBroker ONLY METHOD
         it is automatically called in init but you can recall it if you need to switch clients
         defining this as its own function in case it makes sense to call it to change the mode the broker is in 
         between paper and live'''
@@ -57,7 +51,7 @@ class AlpacaBroker(Broker):
         symbol: str
         timeframe: str ('1hour')
         num_days: int (number of days desired)'''
-        start_date = date.today() - timedelta(days=num_days)
+        start_date = dt.date.today() - dt.timedelta(days=num_days)
         if timeframe == "1Hour":
             timeframe = TimeFrame(1, TimeFrameUnit.Hour)
         elif timeframe == "1Min":
@@ -74,15 +68,17 @@ class AlpacaBroker(Broker):
         '''returns latest quote (bid ask, etc), intake is very flexible
         for now this function is not in use or fully written'''
         # if self.quote_source != 'alpaca_rest':
-        raise NotImplementedError
+        raise NotImplementedError # not needed yet, may write later
 
-    def get_options_chain(self, underlying_symbol, side, expiration_date=None, min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
-        '''skipping for now''' 
-        pass
+    def get_options_chain(self, underlying_symbol, side, expiration_date=None, 
+        min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
+        '''skipping for now, just use get_options_contracts()'''
+        raise NotImplementedError # not needed yet, may write later
 
-    def get_options_contracts(self, underlying_symbol, side, expiration_date=None, min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
+    def get_options_contracts(self, underlying_symbol, side, expiration_date=None, 
+        min_expiration=None, max_expiration=None, min_strike=None, max_strike=None): # return is not pd.dateframe
         '''
-        This gets the list of possible options, not their prices tho
+        This gets the list of possible options without price data
         Get an options chain that satisifies given criteria.
         underlying symbol: str
         side: str 'call' or 'put'
@@ -101,7 +97,7 @@ class AlpacaBroker(Broker):
             # style=None, # either american or european
             strike_price_gte=str(min_strike), # strike price range
             strike_price_lte=str(max_strike),
-            limit=1000, # specifiy limit   STILL NEEDA FINISHT HIS HERE KEEP GOING !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!~!~~~~~~~~~~~~~~
+            limit=1000, # specifiy limit
             # next is switching to get options_chainriequest in optionsclient not trading client
             # and make a return one that has pd.dataframe
             page_token=None
@@ -111,10 +107,10 @@ class AlpacaBroker(Broker):
 
         return options_contract_list
 
-    def get_closest_option(self, option: Option):
+    def get_closest_option(self, option: Option) -> Option:
         ''' finds live option that best matches desired strike and expiration'''
         min_expiration = option.expr
-        max_expiration = option.expr + timedelta(days=5)
+        max_expiration = option.expr + dt.timedelta(days=5)
 
         min_strike = str(round(option.strike*.97,2))
         max_strike = str(round(option.strike*1.03,2))
@@ -130,7 +126,7 @@ class AlpacaBroker(Broker):
                     day_found = True
                     break
             if o.expiration_date != option.expr:
-                option.expr += timedelta(days=1)
+                option.expr += dt.timedelta(days=1)
 
         options_chain_list_reduced = self.get_options_contracts(option.underlying, option.side, option.expr, None, None,  min_strike, max_strike) # get only on correct day
         # find option closest to desired strike
@@ -142,34 +138,34 @@ class AlpacaBroker(Broker):
 
         return Option(closest.strike_price, closest.expiration_date, option.side, option.underlying, closest.symbol) 
 
-    def get_closest_open_date(self, date):
+    def get_closest_open_date(self, date) -> dt.date:
         '''given a date, it will return the soonest market open date
-        date: datetime.date
-        note: in the future i might want to make this take an input of how many days timedelta
-        return is datetime'''
-        end_date = date + timedelta(days=4)
+        date: dt.datetime.date'''
+        end_date = date + dt.timedelta(days=4)
         req = GetCalendarRequest(start=date, end=end_date)
         res = self.trade_client.get_calendar(req)
 
         open_dates = [day.date for day in res]
         while date not in open_dates:
-            date += timedelta(days=1)
+            date += dt.timedelta(days=1)
         return date
 
-    def barset_to_df(self, barset, symbol):
+    def barset_to_df(self, barset, symbol) -> pd.DataFrame:
+        '''AlpacaBroker ONLY METHOD'''
         bars = barset[symbol]
         df = pd.DataFrame([b.model_dump() for b in bars])
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         df.set_index('timestamp', inplace=True)
         return df
 
-    def option_sym_to_object(self, symbol):
+    def option_sym_to_object(self, symbol) -> Option:
+        '''AlpacaBroker ONLY METHOD'''
         opt = self.trade_client.get_option_contract(symbol)
         return Option(opt.strike_price, opt.expiration_date, opt.type, opt.underlying_symbol, symbol)
 
     # === Executing Orders ===
 
-    def place_orders(self, orders):
+    def place_orders(self, orders): # returns res
         '''works for single order or multiple orders'''
         if isinstance(orders, Order): # if single order
             orders = [orders]
@@ -210,7 +206,7 @@ class AlpacaBroker(Broker):
                 raise NotImplementedError("Only doing limit orders for now")
         return res
 
-    def delta_order_to_orders(self, delta_orders):
+    def delta_order_to_orders(self, delta_orders): # returns res
         '''takes over for order_maker_live(orders, underlying_last, port: Portfolio, receipts, time=None):
         works for single order or multiple orders on same
         example:    delta_orders = [
@@ -219,15 +215,15 @@ class AlpacaBroker(Broker):
         '''
         for order in orders:
             goal_strike = underlying_last + order['strike_dist']
-            goal_expr = date.today() + timedelta(days=order['expr_dist'])
+            goal_expr = dt.date.today() + dt.timedelta(days=order['expr_dist'])
             option = Option(goal_strike, goal_expr, order['side'])
             # print('option date', option.expr, type(option.expr))
             o = find_closest_option(option)
             try:
                 res = options_limit_order(o, order['qty'])
                 receipts.append({'side': 'bought', 'name': o.name, 'qty': order['qty'], 'status': res.status})
-                exit_date = find_closest_open_date(date.today() + timedelta(days=1))
-                port.add_position(o, o.symbol, order['qty'], date.today(), exit_date) # add to portfolio for logging. will be saved and loaded on next code execution
+                exit_date = find_closest_open_date(dt.date.today() + dt.timedelta(days=1))
+                port.add_position(o, o.symbol, order['qty'], dt.date.today(), exit_date) # add to portfolio for logging. will be saved and loaded on next code execution
                 # print(res.status)
             except Exception as error:
                 print("error at order placing")
@@ -235,16 +231,16 @@ class AlpacaBroker(Broker):
         record_results("order success", receipts=receipts)
         return res
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id): # returns res
         '''works for single order or multiple orders'''
         res = self.trade_client.cancel_order_by_id(order_id) 
         return res
 
-    def cancel_all_orders(self):
+    def cancel_all_orders(self): # returns res
         res = self.trade_client.cancel_orders()
         return res
 
-    def close_positions(self, symbols, order_type='market'):
+    def close_positions(self, symbols, order_type='market'): # returns res
         '''works for single order or multiple orders
         this is a separate function than options_limit_order bc it takes a different type of input
         note: currently don't know what to do with this function, since can just use place_order to sell, 
@@ -261,13 +257,13 @@ class AlpacaBroker(Broker):
                 res.append(self.place_orders(LimitOrder(symbol, is_stock, -qty)))
         return res
 
-    def close_all_positions(self):
+    def close_all_positions(self): # returns res
         res = self.trade_client.close_all_positions()
         return res
 
     # === Querying Portfolio ===
 
-    def get_open_orders(self):
+    def get_open_orders(self) -> list[Order]:
         orders = self.trade_client.get_orders()
         ord = []
         for o in orders:
@@ -283,7 +279,7 @@ class AlpacaBroker(Broker):
                 raise NotImplementedError("Only handling LimitOrders for now")
         return ord
 
-    def get_positions(self):
+    def get_positions(self) -> list[Position]:
         positions = self.trade_client.get_all_positions()
         pos = []
         for p in positions:
@@ -293,6 +289,6 @@ class AlpacaBroker(Broker):
                 pos.append(Position(symbol=p.symbol, is_stock=True, qty=p.qty, stock=Stock(p.symbol), price=p.current_price))
         return pos
 
-    def get_acct_details(self):
+    def get_acct_details(self) -> Account:
         account = self.trade_client.get_account()
         return Account(float(account.cash), float(account.buying_power), float(account.portfolio_value))
