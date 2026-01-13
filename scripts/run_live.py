@@ -1,41 +1,39 @@
 # standard imports
-import pytz
-import shelve
 import os
 import smtplib
 import ssl
 from datetime import date, datetime, timedelta
 from email.message import EmailMessage
+import time
 
 # third party imports
 import pandas as pd
 import requests as rq
-from alpaca.data.historical.option import OptionHistoricalDataClient, OptionLatestQuoteRequest
-from alpaca.data.historical.stock import StockHistoricalDataClient, StockLatestTradeRequest
-from alpaca.trading.client import TradingClient, GetAssetsRequest
-from alpaca.trading.enums import AssetStatus, ContractType, OrderSide, OrderType, TimeInForce, QueryOrderStatus, OrderStatus
-from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest, MarketOrderRequest, GetOrdersRequest, GetCalendarRequest
 
 # local imports
-from .classes import Position, Option, Portfolio
-from .sentiment_v1 import calc_sentiment, sentiment2order
+from goats.core.core_objects import Portfolio, Option, Stock, Position, Order, LimitOrder
+from goats.broker.alpaca_broker import AlpacaBroker
 
 from dotenv import load_dotenv
-from goats.broker.alpaca_broker import AlpacaBroker
 
 # Load API keys
 load_dotenv()
 trading_mode = os.getenv("TRADING_MODE")
-if trading_mode == "paper":
-    api_key = os.getenv("ALPACA_API_KEY")
-    secret_key = os.getenv("ALPACA_SECRET_KEY")
-else:
+# trading_mode = "paper" # manual override
+
+paper = (trading_mode == "paper") # set boolean
+if paper:
     api_key = os.getenv("ALPACA_API_KEY_PAPER")
+    secret_key = os.getenv("ALPACA_SECRET_KEY_PAPER")
+else:
+    api_key = os.getenv("ALPACA_API_KEY_LIVE")
+    secret_key = os.getenv("ALPACA_SECRET_KEY_LIVE")
     secret_key = os.getenv("ALPACA_SECRET_KEY_PAPER")
 
 # define strat or this can be an import from a file full of strats
 def CustomStrat(Strategy):
     pass
+
 
 def main():
     broker = AlpacaBroker()
@@ -45,9 +43,10 @@ def main():
     while true:
         strat.monitor_trades()
         strat.check_trigger_event()
-        #wait for x time
-        if time > market_close:
-            break
+        time.sleep(5)
+
+    update_shelf_portfolio() # store current portfolio to shelf
+
 
 def update_shelf_portfolio(broker, update_DB=True):
     '''Looks in shelf to see if portfolio object exists
@@ -101,6 +100,7 @@ def record_results(status, receipts=None, func=None, error=None):
     # print(subject,'\n', body)
     send_email(subject, body)
 
+
 def send_email(subject, body):
     '''
     Sends email to self using user in mysecrets file containing provided info
@@ -118,8 +118,37 @@ def send_email(subject, body):
         smtp.login(GMAIL_USER, GMAIL_PASS)
         smtp.sendmail(GMAIL_USER, GMAIL_RECEIVER, em.as_string())
 
+
 if __name__ == "__main__":
     try:
         main()
     except Exception as error:
         record_results('failed to run', func = 'closingScript', error=str(error))
+
+
+
+
+# if I want to do async later
+# async def on_bar(bar):
+#     # update bars in broker.bars or something
+#     pass
+
+# async def trading_loop():
+#     while True:
+#         # do your shits
+#         strat.monitor_trades(listen to updated global var)
+#         # handle market closing check
+#         strat.check_trigger_event()
+#             # check_trigger_event handles buying near EOD, uses historic data to do so
+#             # also checks time, if near market close, then break
+#         # sleep(5 sec)
+
+# async def main():
+#     # init shits
+
+#     subscribe_quotes
+#     await asyncio.gather(
+#         stream_run_foerever(),
+#         tradingloop()
+#     )
+#     # after loop ends, handle some end stuff
