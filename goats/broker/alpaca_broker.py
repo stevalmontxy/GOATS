@@ -64,7 +64,7 @@ class AlpacaBroker(Broker):
         df = self.barset_to_df(barset, symbol)
         return df # type: pd.Dataframe
 
-    def get_latest_quote(self, symbol=None, Stock=None, Option=None):
+    def get_latest_quote(self, symbol=None, asset=None):
         '''returns latest quote (bid ask, etc), intake is very flexible
         for now this function is not in use or fully written'''
         # if self.quote_source != 'alpaca_rest':
@@ -240,7 +240,7 @@ class AlpacaBroker(Broker):
         res = self.trade_client.cancel_orders()
         return res
 
-    def close_positions(self, symbols, order_type='market'): # returns res
+    def close_positions(self, symbols=None, asset=None, order_type='market'): # returns res
         '''works for single order or multiple orders
         this is a separate function than options_limit_order bc it takes a different type of input
         note: currently don't know what to do with this function, since can just use place_order to sell, 
@@ -272,9 +272,9 @@ class AlpacaBroker(Broker):
 
             if o.limit_price is not None:
                 if o.asset_class == 'us_option':
-                    ord.append(LimitOrder(symbol=o.symbol, is_stock=False, qty=o.qty, limit_price=o.limit_price)) 
+                    ord.append(LimitOrder(symbol=o.symbol, qty=o.qty, limit_price=o.limit_price)) 
                 elif o.asset_class == 'us_equity':
-                    ord.append(LimitOrder(symbol=o.symbol, is_stock=True, qty=o.qty, limit_price=o.limit_price))
+                    ord.append(LimitOrder(symbol=o.symbol, qty=o.qty, limit_price=o.limit_price))
             else:
                 raise NotImplementedError("Only handling LimitOrders for now")
         return ord
@@ -284,11 +284,11 @@ class AlpacaBroker(Broker):
         pos = []
         for p in positions:
             if p.asset_class == 'us_option':
-                pos.append(Position(symbol=p.symbol, is_stock=False, qty=p.qty, option=self.option_sym_to_object(p.symbol), price=p.current_price))
+                pos.append(Position(symbol=p.symbol, asset=self.option_sym_to_object(p.symbol), qty=p.qty, price=p.current_price))
             elif p.asset_class == 'us_equity':
-                pos.append(Position(symbol=p.symbol, is_stock=True, qty=p.qty, stock=Stock(p.symbol), price=p.current_price))
+                pos.append(Position(symbol=p.symbol, asset=Stock(p.symbol), qty=p.qty, price=p.current_price))
         return pos
 
-    def get_acct_details(self) -> Account:
+    def get_acct_value(self) -> Account:
         account = self.trade_client.get_account()
         return Account(float(account.cash), float(account.buying_power), float(account.portfolio_value))

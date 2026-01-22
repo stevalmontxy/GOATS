@@ -1,7 +1,7 @@
 # Standard Imports
 import sys
 import os
-from datetime import date, datetime, timedelta
+import datetime as dt
 
 # Third Party Imports
 import pytest
@@ -46,8 +46,8 @@ def test_get_stock_data(alpaca_broker):
 def test_get_options_contracts(alpaca_broker):
     underly = "SPY"
     side = "call"
-    min_expr = date.today() + timedelta(days=2)
-    max_expr = min_expr + timedelta(days=8)
+    min_expr = dt.date.today() + dt.timedelta(days=2)
+    max_expr = min_expr + dt.timedelta(days=8)
     min_strike = 650
     max_strike = 700
     chain = alpaca_broker.get_options_contracts(underlying_symbol=underly, side=side, min_expiration=min_expr, 
@@ -55,14 +55,14 @@ def test_get_options_contracts(alpaca_broker):
     assert len(chain) > 100
 
 def test_get_closest_option(alpaca_broker):
-    option = Option(strike=660, expr=(date.today()+timedelta(days=3)), side="call", underlying="SPY")
+    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="call", underlying="SPY")
     opt = alpaca_broker.get_closest_option(option)
     assert type(opt.symbol) == str 
 
 def test_get_closest_open_date(alpaca_broker):
-    later_date = date.today() + timedelta(days = 2)
+    later_date = dt.date.today() + dt.timedelta(days = 2)
     alpaca_broker.get_closest_open_date(later_date)
-    assert later_date >= date.today() 
+    assert later_date >= dt.date.today() 
 
 # Test Executing Orders
 
@@ -72,7 +72,7 @@ def test_place_stock_limit_order(alpaca_broker):
     assert res[0].failed_at == None
 
 def test_place_option_limit_order(alpaca_broker):
-    option = Option(strike=660, expr=(date.today()+timedelta(days=3)), side="call", underlying="SPY")
+    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="call", underlying="SPY")
     closest_option = alpaca_broker.get_closest_option(option)
     order = LimitOrder(closest_option.symbol, False, 1)
     res = alpaca_broker.place_orders(order)
@@ -116,7 +116,7 @@ def test_get_positions(alpaca_broker):
     positions = alpaca_broker.get_positions()
     assert True
 
-def test_get_acct_details(alpaca_broker):
-    acct = alpaca_broker.get_acct_details()
+def test_get_acct_value(alpaca_broker):
+    acct = alpaca_broker.get_acct_value()
     assert acct.cash > 0
     assert acct.portfolio_value >= acct.cash

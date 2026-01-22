@@ -9,6 +9,7 @@ from .broker import Broker
 from goats.core.core_objects import Portfolio, Stock, Option, Position, Account
 from goats.core.core_objects import Order, LimitOrder
 
+
 class BTBroker(Broker):
     '''BTBroker class keeps its own copy of pos and ords for api calls. 
     state memory is stored in portfolio tho
@@ -25,17 +26,17 @@ class BTBroker(Broker):
     def set_time(self, time):
         ''' BTBRoker ONLY METHOD'''
         self.now = time
-        # self.now = self.now.tz_localize("America/New_York")        
+        # self.now = self.now.tz_localize("America/New_York") # no longer timezone aware
         # self.now = timezone.utc.localize(self.now)
 
     # === Fetching Data ===
 
     def get_stock_data(self, symbol, timeframe, num_days) -> pd.DataFrame:
-        '''for now, assume we only have SPY df for trading on SPY.
+        '''for now, assume we only have AAPL df for trading on AAPL.
         ignore symbol param but its there for polymorphism'''
-        if symbol != "SPY":
+        if symbol != "AAPL":
             raise NotImplementedError
-        if timeframe != "1Hour":
+        if timeframe != "30Min":
             raise NotImplementedError
 
         end_date = self.now
@@ -48,23 +49,24 @@ class BTBroker(Broker):
         for now this function is not in use or fully written'''
         raise NotImplementedError # not needed yet, may write later
 
-    def get_latest_value(self, Stock=None, Option=None) -> float:
+    def get_asset_value(self, asset)-> float:
         ''' BTBRoker ONLY METHOD
         gets latest value/mid value for either stock or option
         BEWARE: it assumes that self.now time will be in there '''
-        if Stock is not none:
-            if stock.symbol != "SPY":
+        if isinstance(asset, Stock):
+            if asset.symbol != "AAPL":
                 raise NotImplementedError
-            return data.loc[self.now].close
+            # return data.loc[self.now].Close
+            return self.underly_df.loc[self.now].Close
         else: # if option
             quote_date = self.now.replace(hour=0, minute=0)
             quote_time_hour = self.now.hour + self.now.minute/60
-            df_slice = self.options_df[(options_df["[QUOTE_DATE]"] == quote_date) &
-                                    (options_df["[STRIKE]"]==float(option.strike)) &
-                                    (options_df["[EXPIRE_DATE]"]==option.expr) &
-                                    (options_df["[QUOTE_TIME_HOURS]"]==quote_time_hour) ]
+            df_slice = self.options_df[(self.options_df["[QUOTE_DATE]"] == pd.to_datetime(quote_date)) &
+                                    (self.options_df["[STRIKE]"]==float(asset.strike)) &
+                                    (self.options_df["[EXPIRE_DATE]"]==pd.to_datetime(asset.expr)) &
+                                    (self.options_df["[QUOTE_TIME_HOURS]"]==quote_time_hour) ]
 
-            if option.side == 'call':
+            if asset.side == 'call':
                 return float(df_slice.iloc[0]["[C_LAST]"])
             else:  # for puts
                 return float(df_slice.iloc[0]["[P_LAST]"])
@@ -77,8 +79,11 @@ class BTBroker(Broker):
     def get_options_contracts(self, underlying_symbol, side, expiration_date=None, 
         min_expiration=None, max_expiration=None, min_strike=None, max_strike=None) -> pd.DataFrame:
         '''fct might not be needed for BTBroker'''
-        if underlying_symbol != "SPY":
+        if underlying_symbol != "AAPL":
             raise NotImplementedError
+        expiration_date = pd.to_datetime(expiration_date) # need to use pd timestamp type
+        min_expiration = pd.to_datetime(min_expiration)
+        max_expiration = pd.to_datetime(max_expiration)
 
         subset = self.options_df.loc[
             (self.options_df["[QUOTE_DATE]"] >= min_expiration) &
@@ -90,11 +95,11 @@ class BTBroker(Broker):
 
     def get_closest_option(self, option: Option) -> Option:
         '''find option that best matches desired strike and expiration'''
-        if option.symbol != "SPY":
+        if option.underlying != "AAPL":
             raise NotImplementedError
 
         # get working date
-        while option.expr not in self.options_df["[EXPIRE_DATE]"]:
+        while pd.to_datetime(option.expr) not in self.options_df["[EXPIRE_DATE]"].values:
             option.expr += dt.timedelta(days=1)
 
         # get working expr
@@ -110,21 +115,28 @@ class BTBroker(Broker):
 
     def get_closest_open_date(self, date) -> dt.date:
         '''given a date, it will return the soonest market open date'''
-        while date not in self.underly_df.index.date:
+        # while date not in self.underly_df.index.date:
+        if isinstance(date, dt.datetime):
+            date = date.date() # i know this is ugly
+        date = pd.to_datetime(date) # need to use pd timestamp type
+        while date not in self.options_df["[QUOTE_DATE]"].values:
             date += dt.timedelta(days=1)
         return date
 
     # === Executing Orders ===
 
-    def place_orders(self, orders): # returns res
+    def place_orders(self, order): # returns res
         '''works for single order or multiple orders
         backtest broker takse the "res" and puts it into the trade log'''
-        if order.is_stock:
-            value = self.get_stock_value(Stock(order.symbol))
-            self.positions.append(Stock(symbol=order.symbol))
-        else: # is option
-            value = self.get_option_value(Option(order.option.symbol))
-            self.positions.append(Option(symbol=order.symbol))
+        # if order.is_stock:
+        #     value = self.get_asset_value(order.stock)
+        #     self.positions.append(Position(order.stock.symbol, True, order.qty, stock=order.stock))
+        # else: # is option
+        #     value = self.get_asset_value(order.option)
+        #     self.positions.append(Postion(order.option.symbol, False, order.qty, option=order.option))
+
+        value = self.get_asset_value(order.asset)
+        self.positions.append(Position(order.asset.symbol, order.asset, order.qty))
 
         self.cash -= value * order.qty 
         # self.trade_log.append(f"Opened position ID: {option.ID} at time: {time} at ${value}")
@@ -136,8 +148,8 @@ class BTBroker(Broker):
         '''takes over for orderMakerLive function
         works for single order or multiple orders on same
         example:    delta_orders = [
-                        {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1, underlying: "SPY"},
-                        {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1, underlying: "SPY"} ]'''
+                        {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1, underlying: "AAPL"},
+                        {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1, underlying: "AAPL"} ]'''
         # self.find_closest_option(self)
         # underlying_last = df["[UNDERLYING_LAST]"]
         # goal_strike = underlying_last+strike_dist
@@ -159,13 +171,14 @@ class BTBroker(Broker):
         res = True
         return res
 
-    def close_positions(self, symbols, order_type='market'): # returns res
-        '''
-        remove an option from positions list, find value at close time, add to trade log
+    def close_positions(self, symbols=None, asset=None, order_type='market'): # returns res
+        ''' remove an option from positions list, find value at close time, add to trade log
         works for single order or multiple orders'''
-        value = self.get_option_value(option.expr, option.strike, option.strike, self.now)
-        qty = self.positions[option.ID].qty
-        self.positions[option.ID].delete #or whatever ~~~~~~~~~~~
+        if asset is not None:
+            if asset.is_stock:
+                value = self.get_asset_value(asset.expr, asset.strike, asset.strike, self.now)
+                qty = self.positions[asset.ID].qty
+                self.positions[asset.ID].delete #or whatever ~~~~~~~~~~~
         cash += 100 * value * qty
         # self.trade_log.append(f"closed position ID: {option.ID} at time: {time} at ${value}")
         res = True
@@ -174,10 +187,10 @@ class BTBroker(Broker):
     def close_all_positions(self): # returns res
         for p in self.positions:
             if p.is_stock:
-                value = self.get_stock_value(p)
+                value = self.get_asset_value(p)
                 cash += value * p.qty
             else: # is option
-                value = self.get_option_value(p.option.expr, p.option.strike, p.option.strike, self.now)
+                value = self.get_asset_value(p.option.expr, p.option.strike, p.option.strike, self.now)
                 qty = p.qty
                 cash += value * p.qty
         self.orders = []
@@ -193,5 +206,12 @@ class BTBroker(Broker):
     def get_positions(self) -> list[Position]:
         return self.positions
 
-    def get_acct_details(self) -> Account:
-        return Account(float(account.cash), float(account.buying_power), float(account.portfolio_value))
+    def get_acct_value(self) -> Account:
+        NAV = self.cash
+        buying_power = self.cash
+        for p in self.positions:
+            NAV += self.get_asset_value(p) * p.qty
+        # for o in orders: # assume its okay since BTBroker instantly turns orders into assets
+            # buying_power -= self.get_asset_value(o.symbol) * o.qty
+        
+        return Account(self.cash, buying_power, NAV)

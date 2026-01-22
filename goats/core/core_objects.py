@@ -119,10 +119,11 @@ class Option:
 class Position:
     '''This is an intermediary between portfolio -> position -> option.'''
     symbol: str 
-    is_stock: bool
+    asset: Stock | Option = None
+    # is_stock: bool
     qty: float = 1 # + indicates long, - indicates short
-    stock: Stock = None 
-    option: Option = None 
+    # stock: Stock = None 
+    # option: Option = None 
     entry_time: datetime = None
     exit_time: datetime = None
     price: float = None # can be bid or ask. value is kept at this level. at Stock or Option level, they are only used to identify
@@ -132,6 +133,12 @@ class Position:
             # posID: id number within active positions. an option will be associated with a posID throughout its holding,
             #        then the posID will be reused by other positions
 
+    @property
+    def is_stock(self):
+        if self.symbol is None:
+            return isinstance(self.asset, Stock)
+        else:
+            return len(self.symbol) < 5
 
 @dataclass
 class Account:
@@ -153,9 +160,11 @@ class Order:
     qty: qty (float)
     pseudo: whether an order is actually in the broker or it has to be manually entered as a limit at the right time (bool)
     '''
-    def __init__(self, symbol, is_stock, qty, pseudo=False, ord_ID=0):
+    # def __init__(self, symbol, is_stock, qty, pseudo=False, ord_ID=0, stock=None, option=None):
+    def __init__(self, symbol=None, asset=None, qty=1, pseudo=False, ord_ID=0):
         self.symbol = symbol
-        self.is_stock = is_stock
+        # self.is_stock = is_stock
+        self.asset=asset
         self.qty = qty # + indicates long, - indicates short
         # self.conditional = conditional
         # self.minimum = minimum
@@ -167,6 +176,13 @@ class Order:
     def check_condition(self):
         return false
         #maybe they should return either an Order or None
+
+    @property
+    def is_stock(self):
+        if self.symbol is None:
+            return isinstance(self.asset, Stock)
+        else:
+            return len(self.symbol) < 5
 
     # def __repr__(self):
         # return f"Order: symbol: ${self.symbol}, is_stock: {self.is_stock}, qty: {self.qty}, conditional: {self.conditional}, minimum: {self.minimum}, ord_ID: {sef.ord_ID}"
@@ -184,8 +200,8 @@ class MarketOrder(Order):
 
 class LimitOrder(Order):
     '''Limit price can be provided, or if None, will automatically get a quote'''
-    def __init__(self, symbol, is_stock, qty, limit_price=None, ord_ID=0):
-        super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=not is_stock, ord_ID=0)
+    def __init__(self, symbol=None, asset=None, qty=1, limit_price=None, ord_ID=0):
+        super().__init__(symbol=symbol, asset=asset, qty=qty, ord_ID=0)
         self.limit_price = limit_price
 
     def check_condition(self, price):
