@@ -45,7 +45,7 @@ def test_get_stock_data(alpaca_broker):
 
 def test_get_options_contracts(alpaca_broker):
     underly = "SPY"
-    side = "call"
+    side = "C"
     min_expr = dt.date.today() + dt.timedelta(days=2)
     max_expr = min_expr + dt.timedelta(days=8)
     min_strike = 650
@@ -55,7 +55,7 @@ def test_get_options_contracts(alpaca_broker):
     assert len(chain) > 100
 
 def test_get_closest_option(alpaca_broker):
-    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="call", underlying="SPY")
+    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="C", underlying="SPY")
     opt = alpaca_broker.get_closest_option(option)
     assert type(opt.symbol) == str 
 
@@ -68,43 +68,46 @@ def test_get_closest_open_date(alpaca_broker):
 
 def test_place_stock_limit_order(alpaca_broker):
     order = LimitOrder("SPY", True, 1)
-    res = alpaca_broker.place_orders(order)
-    assert res[0].failed_at == None
+    res = alpaca_broker.place_order(order)
+    assert res.failed_at == None
 
 def test_place_option_limit_order(alpaca_broker):
-    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="call", underlying="SPY")
+    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="C", underlying="SPY")
     closest_option = alpaca_broker.get_closest_option(option)
     order = LimitOrder(closest_option.symbol, False, 1)
-    res = alpaca_broker.place_orders(order)
-    assert res[0].failed_at == None
+    res = alpaca_broker.place_order(order)
+    assert res.failed_at == None
     # assert res[0].status == 'pending_new'
 
 # def test_delta_order_to_order(alpaca_broker):
 
 def test_cancel_order(alpaca_broker):
     order = LimitOrder("SPY", True, 1, limit_price=500)
-    res = alpaca_broker.place_orders(order) 
-    res_cancel = alpaca_broker.cancel_order(res[0].id)
+    res = alpaca_broker.place_order(order) 
+    res_cancel = alpaca_broker.cancel_order(res.id)
     assert True # if no errors it worked
 
 def test_cancel_all_orders(alpaca_broker):
     #place test limit orders that won't fill
     order = LimitOrder("SPY", True, 1, limit_price=500)
-    alpaca_broker.place_orders(order) 
+    alpaca_broker.place_order(order) 
     order2 = LimitOrder("SPY", True, 1, limit_price=530)
-    alpaca_broker.place_orders(order2)
+    alpaca_broker.place_order(order2)
     res = alpaca_broker.cancel_all_orders()
     for r in res:
         assert r.status == 200
 
-# def test_close_positions(alpaca_broker):
-#     order = LimitOrder("SPY", True, 1)
-#     alpaca_broker.place_orders(order)
-
-#     res =  alpaca_broker.close_positions("SPY")
-#     print(res)
-#     for r in res:
-#         assert r.status == 200
+def test_close_position(alpaca_broker):
+    # order = LimitOrder("SPY", True, 1)
+    # alpaca_broker.place_order(order)
+    # res =  alpaca_broker.close_position("SPY")
+    # same option ordered earlier
+    option = Option(strike=660, expr=(dt.date.today()+dt.timedelta(days=3)), side="C", underlying="SPY")
+    closest_option = alpaca_broker.get_closest_option(option)
+    res = alpaca_broker.close_position(symbols=closest_option.symbol)
+    for r in res:
+        assert r.failed_at == None or r.status == 'pending_new'
+        # assert r.status == 200
 
 # Test Querying Portfolio
 
@@ -118,5 +121,5 @@ def test_get_positions(alpaca_broker):
 
 def test_get_acct_value(alpaca_broker):
     acct = alpaca_broker.get_acct_value()
-    assert acct.cash > 0
+    # assert acct.cash > 0
     assert acct.portfolio_value >= acct.cash

@@ -84,7 +84,7 @@ class AlpacaBroker(Broker):
         side: str 'call' or 'put'
         all dates in datetime.date
         min strike, max strike: float or int'''
-        type = ContractType.CALL if side == 'call' else ContractType.PUT
+        type = ContractType.CALL if side == 'C' else ContractType.PUT
 
         req = GetOptionContractsRequest(
             underlying_symbols=[underlying_symbol], # specify symbol(s)
@@ -150,6 +150,14 @@ class AlpacaBroker(Broker):
             date += dt.timedelta(days=1)
         return date
 
+    def now(self):
+        now = dt.datetime.now()
+        return now.replace(second=0, microsecond=0) 
+
+    def get_open_hours(self):
+        # will get market open and close time to know if ends early
+        pass
+
     def barset_to_df(self, barset, symbol) -> pd.DataFrame:
         '''AlpacaBroker ONLY METHOD'''
         bars = barset[symbol]
@@ -165,45 +173,66 @@ class AlpacaBroker(Broker):
 
     # === Executing Orders ===
 
-    def place_orders(self, orders): # returns res
-        '''works for single order or multiple orders'''
-        if isinstance(orders, Order): # if single order
-            orders = [orders]
+    def place_order(self, order): # returns res
+        # '''works for single order or multiple orders'''
+        # if isinstance(orders, Order): # if single order
+        #     orders = [orders]
         
-        res = []
-        for order in orders:
-            if type(order) == LimitOrder and order.is_stock:
-                if order.limit_price is None:
-                    stock_quote_request = StockLatestQuoteRequest(symbol_or_symbols=order.symbol)
-                    stock_quote = self.stock_data_client.get_stock_latest_quote(request_params = stock_quote_request)
-                    order.limit_price = round((stock_quote[order.symbol].bid_price + stock_quote[order.symbol].ask_price)/2,2) # mid price
-                req = LimitOrderRequest(
-                    symbol=order.symbol,
-                    qty=order.qty,
-                    limit_price = order.limit_price,
-                    side=OrderSide.BUY,
-                    type=OrderType.LIMIT,
-                    time_in_force = TimeInForce.DAY
-                    )
-    
-                res.append(self.trade_client.submit_order(req))
-            elif type(order) == LimitOrder and not order.is_stock:
-                if order.limit_price is None:
-                    option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=order.symbol)
-                    option_quote = self.option_data_client.get_option_latest_quote(request_params=option_quote_request)
-                    order.limit_price = round((option_quote[order.symbol].bid_price + option_quote[order.symbol].ask_price)/2,2) # mid price 
-                req = LimitOrderRequest(
-                    symbol=order.symbol,
-                    qty=order.qty,
-                    limit_price = order.limit_price,
-                    side=OrderSide.BUY,
-                    type=OrderType.LIMIT,
-                    time_in_force = TimeInForce.DAY
-                    )
-    
-                res.append(self.trade_client.submit_order(req))
-            elif type == other:
-                raise NotImplementedError("Only doing limit orders for now")
+        # res = []
+        # for order in orders:
+        if order.qty > 0:
+            side = OrderSide.BUY
+        else:
+            side = OrderSide.SELL
+            order.qty *= -1
+        
+        if type(order) == LimitOrder and order.is_stock: # limit stock order
+            if order.limit_price is None:
+                stock_quote_request = StockLatestQuoteRequest(symbol_or_symbols=order.symbol)
+                stock_quote = self.stock_data_client.get_stock_latest_quote(request_params = stock_quote_request)
+                order.limit_price = round((stock_quote[order.symbol].bid_price + stock_quote[order.symbol].ask_price)/2,2) # mid price
+            req = LimitOrderRequest(
+                symbol=order.symbol,
+                qty=order.qty,
+                limit_price = order.limit_price,
+                side=side,
+                type=OrderType.LIMIT,
+                time_in_force = TimeInForce.DAY
+                )
+            res = self.trade_client.submit_order(req)
+
+        elif type(order) == LimitOrder and not order.is_stock: # limit option order
+            if order.limit_price is None:
+                option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=order.symbol)
+                option_quote = self.option_data_client.get_option_latest_quote(request_params=option_quote_request)
+                order.limit_price = round((option_quote[order.symbol].bid_price + option_quote[order.symbol].ask_price)/2,2) # mid price 
+            req = LimitOrderRequest(
+                symbol=order.symbol,
+                qty=order.qty,
+                limit_price = order.limit_price,
+                side=side,
+                type=OrderType.LIMIT,
+                time_in_force = TimeInForce.DAY
+                )
+            res = self.trade_client.submit_order(req)
+
+        elif type(order) == ScheduledOrder and not order.is_stock: # scheduled option order
+            option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=order.symbol)
+            option_quote = self.option_data_client.get_option_latest_quote(request_params=option_quote_request)
+            order.limit_price = round((option_quote[order.symbol].bid_price + option_quote[order.symbol].ask_price)/2,2) # mid price 
+            req = LimitOrderRequest(
+                symbol=order.symbol,
+                qty=order.qty,
+                limit_price = order.limit_price,
+                side=side,
+                type=OrderType.LIMIT,
+                time_in_force = TimeInForce.DAY
+                )
+            res = self.trade_client.submit_order(req)
+
+        elif type == other:
+            raise NotImplementedError("Only doing limit orders for now")
+
         return res
 
     def delta_order_to_orders(self, delta_orders): # returns res
@@ -240,7 +269,7 @@ class AlpacaBroker(Broker):
         res = self.trade_client.cancel_orders()
         return res
 
-    def close_positions(self, symbols=None, asset=None, order_type='market'): # returns res
+    def close_position(self, symbols=None, asset=None, order_type='market'): # returns res
         '''works for single order or multiple orders
         this is a separate function than options_limit_order bc it takes a different type of input
         note: currently don't know what to do with this function, since can just use place_order to sell, 
@@ -254,7 +283,7 @@ class AlpacaBroker(Broker):
             if order_type=='market':
                 res.append(self.trade_client.close_position(symbol_or_asset_id=symbol))
             elif order_type == 'limit':
-                res.append(self.place_orders(LimitOrder(symbol, is_stock, -qty)))
+                res.append(self.place_orders(LimitOrder(symbol=symbol, qty=-qty)))
         return res
 
     def close_all_positions(self): # returns res

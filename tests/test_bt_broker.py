@@ -48,8 +48,8 @@ def test_get_stock_data(bt_broker):
 
 def test_get_options_contracts(bt_broker):
     underly = "AAPL"
-    side = "call"
-    min_expr = bt_broker.now.date() + pd.Timedelta(days=2)
+    side = "C"
+    min_expr = bt_broker.now().date() + pd.Timedelta(days=2)
     max_expr = min_expr + pd.Timedelta(days=8)
     min_strike = 130
     max_strike = 190
@@ -58,27 +58,27 @@ def test_get_options_contracts(bt_broker):
     assert len(chain) > 100
 
 def test_get_closest_option(bt_broker):
-    option = Option(strike=160, expr=(bt_broker.now.date()+dt.timedelta(days=3)), side="call", underlying="AAPL")
+    option = Option(strike=160, expr=(bt_broker.now().date()+dt.timedelta(days=3)), side="C", underlying="AAPL")
     opt = bt_broker.get_closest_option(option)
     assert type(opt.strike) == int
 
 def test_get_closest_open_date(bt_broker):
-    later_date = bt_broker.now.date() + dt.timedelta(days = 2)
+    later_date = bt_broker.now().date() + dt.timedelta(days = 2)
     bt_broker.get_closest_open_date(later_date)
-    assert later_date >= bt_broker.now.date() 
+    assert later_date >= bt_broker.now().date() 
 
 # Test Executing Orders
 
 def test_place_stock_limit_order(bt_broker):
     order = LimitOrder(asset=Stock(symbol="AAPL"))
-    res = bt_broker.place_orders(order)
+    res = bt_broker.place_order(order)
     assert res == True
 
 def test_place_option_limit_order(bt_broker):
-    option = Option(strike=160, expr=(bt_broker.now.date()+dt.timedelta(days=3)), side="call", underlying="AAPL")
+    option = Option(strike=160, expr=(bt_broker.now().date()+dt.timedelta(days=3)), side="C", underlying="AAPL")
     closest_option = bt_broker.get_closest_option(option)
     order = LimitOrder(asset=closest_option)
-    res = bt_broker.place_orders(order)
+    res = bt_broker.place_order(order)
     assert res == True
     # assert res[0].status == 'pending_new'
 
@@ -103,14 +103,12 @@ def test_cancel_all_orders(bt_broker):
         assert r.status == 200
         '''
 
-# def test_close_positions(bt_broker):
-#     order = LimitOrder("AAPL", True, 1)
-#     bt_broker.place_orders(order)
+def test_close_position(bt_broker):
+    order = LimitOrder("AAPL", True, 1)
+    bt_broker.place_orders(order)
 
-#     res =  bt_broker.close_positions("AAPL")
-#     print(res)
-#     for r in res:
-#         assert r.status == 200
+    res =  bt_broker.close_position(asset=Stock("AAPL"))
+    assert res == True
 
 # Test Querying Portfolio
 
@@ -131,5 +129,5 @@ def test_get_acct_value(bt_broker):
 
 def test_change_time(bt_broker):
     bt_broker.set_time(dt.date(2023, 7, 15))
-    assert bt_broker.now.month == 7
-    assert bt_broker.now.day == 15
+    assert bt_broker.now().month == 7
+    assert bt_broker.now().day == 15
