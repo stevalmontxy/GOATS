@@ -4,6 +4,7 @@ import datetime as dt
 # Third Party Imports
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # Local Imports
 from .core_objects import Portfolio, Option, Stock, Position
@@ -62,7 +63,6 @@ class Backtest:
                 # current_time += dt.timedelta(days=1)
 
             self.strat.broker.set_time(current_time)
-            # self.strat.portfolio.broker.set_time(current_time) not needed
 
             print(f"current time is {current_time}")
             self.strat.monitor_trades()
@@ -72,6 +72,7 @@ class Backtest:
             self.time_log.append(current_time)
             current_time += dt.timedelta(minutes=30)
         # print(self.nav_log)
+        self.calc_stats()
         print(f'Run time: {dt.datetime.now() - start} seconds')
         # return stats, equity_plot, portfolio, trade_log
     # END OF RUN()
@@ -90,30 +91,39 @@ class Backtest:
             return 0  # Default if no commission is specified    
 
     def plot_nav(self, datetime_x_axis=False):
-        ''' plots NAV and cash simultaneously vs time
+        ''' plots NAV, cash, and underlying simultaneously vs time
         datetime_x_axis: if True, plot time, else, "flatten" x axis'''
         if datetime_x_axis:
             x = self.time_log    
         else:
             x =  list(range(len(self.time_log)))
 
-        fig = go.Figure()
+        # fig = go.Figure()
+        fig = make_subplots(specs=[[{"secondary_y": True}]])
 
         fig.add_trace(go.Scatter(
                             x=x, y=self.cash_log,
-                            mode='lines', name='Cash', fill='tozeroy'))
+                            mode='lines', name='Cash', fill='tozeroy'), secondary_y=False)
 
         fig.add_trace(go.Scatter(
                             x=x, y=self.nav_log,
-                            mode='lines', name='NAV', fill='tozeroy'))
+                            mode='lines', name='NAV', fill='tozeroy'), secondary_y=False)
 
-        fig.update_layout(title='Cash and NAV Over Time',
-        xaxis_title='time', yaxis_title='value($)', hovermode='x unified')
+        underlying_prices = self.underly_df.loc[self.time_log, 'Close']
+        fig.add_trace(go.Scatter(
+                            x=x, y=underlying_prices,
+                            mode='lines', name='Underlying'), secondary_y=True)
+
+        fig.update_layout(title='Portfolio and Underlying Over Time',
+        xaxis_title='Time', hovermode='x unified')
+        # xaxis_title='Time', yaxis_title='value($)', hovermode='x unified')
+        fig.update_yaxes(title_text="Value ($)", secondary_y=False)
+        fig.update_yaxes(title_text="Underlying ($)", secondary_y=True)
 
         fig.show()
 
+    '''
     def plot_underlying(self, datetime_x_axis=False):
-        '''plots underling vs  time'''
         if datetime_x_axis:
             x = self.underly_df.index
         else:
@@ -127,30 +137,36 @@ class Backtest:
         fig.update_layout(title='Underlying Over Time',
         xaxis_title='time', yaxis_title='value($)', hovermode='x unified')
         fig.show()
+        '''
 
     def calc_stats(self):
-        # calc WR, rate of return %, amt P/L, annualized rate of return %, max drawdown %, avg drawdown %, variance of some sort
-        net_pl = self.nav_log[-1] - self.nav_log[0] 
-        rate_return = (self.nav_log[-1] - self.nav_log[0]) / self.nav_log[0]
-        pct_of_yr = (self.time_log[-1] - self.time_log[0]) / dt.timedelta(days=365)
-        annualized_rate_return = (1 + rate_return) ** (1/pct_of_yr) - 1 # consider geometric calc
-        underly_rate_return = (self.underly_df["Close"].iloc[-1] - self.underly_df["Close"].iloc[0]) / self.underly_df["Close"].iloc[0]
-        return net_pl, rate_return*100, annualized_rate_return*100, underly_rate_return*100
+        start_time = self.time_log[0]
+        end_time = self.time_log[-1]
+        total_time = end_time - start_time
+        pct_of_yr = total_time / dt.timedelta(days=365)
+        net_pl = self.nav_log[-1] - self.nav_log[0]
+        rate_return = net_pl / self.nav_log[0]
+        underly_return = (self.underly_df["Close"].loc[end_time] - 
+                          self.underly_df["Close"].loc[start_time]) / self.underly_df["Close"].loc[start_time]
+        self.stats = {
+            "Start": start_time,
+            "End": end_time,
+            "Total Time": total_time, 
+            "Net P/L ($)": net_pl, 
+            "Total Return (%)": rate_return*100,
+            "Annualized Return (%)": ((1 + rate_return) ** (1/pct_of_yr) - 1)*100,
+            "Underly Return (%)": underly_return*100,
+            # "Max Drawdown (%)": 
+            # "Win Rate (%)":
+        }
 
     def show_stats(self):
-        # WR, overall return, annualized return
-        # show as table
-        net_pl, rr, arr, urr = self.calc_stats()
+        # stats_series = pd.Series(self.stats, name="Results")
+        print("="*30)
         print('Run Summary')
-        print("Overview")
-        print(f"Start: {self.time_log[0]}")
-        print(f"End: {self.time_log[-1]}")
-        print(f"Total time: {self.time_log[-1] - self.time_log[0]}")
-        print("Performance")
-        print(f"npl = ${net_pl:>10,.2f}")
-        print(f"rr = {rr:>10,.2f}%")
-        print(f"arr = {arr:>10,.2f}%")
-        print(f"urr = {urr:>10,.2f}%")
+        # print(stats_series)
+        print(pd.Series(self.stats))
+        print("="*30)
 
     def show_trade_log(self):
         # show trade log as table
