@@ -129,23 +129,22 @@ class Strategy:
 
 class DemoStrat(Strategy):
     # inherit everything from Strategy
+    def __init__(self, broker, portfolio):
+        super().__init__(broker, portfolio)
+        self.last_ran_closing_event = None
+
     def check_trigger_event(self):
         # add more trigger conditions as fitting for strat
-        if self.broker.now().time() == dt.time(15,30): # or early close day near end
+        if self.broker.now().time() == dt.time(15,30) and self.last_ran_closing_event !=self.broker.now().date(): # or early close day near end
             self.closing_event()
 
     def closing_event(self):
         print("DEMO CLOSING EVENT TRIGGERED")
-        print("positions rn:")
-        print(self.portfolio.positions)
-        print("orders rn:")
-        print(self.portfolio.open_orders)
-        print("pseudo orders rn:")
-        print(self.portfolio.pseudo_orders)
-        print("BROKER positions")
-        print(self.broker.positions)
-        print("BROKER orders")
-        print(self.broker.orders)
+        print("positions rn:", self.portfolio.positions)
+        print("orders rn:", self.portfolio.open_orders)
+        print("pseudo orders rn:", self.portfolio.pseudo_orders)
+        print("BROKER positions", self.broker.positions)
+        print("BROKER orders", self.broker.orders)
 
         stock_order = self.stock_helper_funct()
         self.place_order(stock_order)
@@ -155,6 +154,8 @@ class DemoStrat(Strategy):
 
         pseudo_order = self.opt_helper_funct2(opt_order)
         self.place_pseudo_order(pseudo_order)
+        
+        self.last_ran_closing_event = self.broker.now().date()
 
     def stock_helper_funct(self):
         return LimitOrder(symbol="AAPL", asset=Stock("AAPL"), qty=1)

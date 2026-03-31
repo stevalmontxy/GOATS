@@ -12,7 +12,7 @@ class Portfolio:
     open_orders: list that holds real orders
     pseudo_orders: list that holds "pseudo" orders- these are things that strat monitors, and submits a real order upon condition
     '''
-    def __init__(self, broker, initial_cash):
+    def __init__(self, broker, initial_cash=10000):
         self.broker = broker
         self.cash = initial_cash
         self.acct_value = initial_cash
@@ -20,7 +20,6 @@ class Portfolio:
         self.open_orders = []
         self.pseudo_orders = []
 
-    # def add_position(self, option, symbol, qty, entry_time, entry_price):
     def add_position(self, pos):
         '''entry_time should be input of date.today(). if position is being updated, it will be None'''
         self.positions.append(pos)
@@ -85,6 +84,9 @@ class Portfolio:
         self.acct_value = acct.portfolio_value
         # buying power ignored
 
+    def set_broker(self, broker):
+        self.broker = broker
+
     @property
     def has_positions(self):
         return len(self.positions) > 0
@@ -94,7 +96,7 @@ class Portfolio:
         return len(self.open_orders) > 0
 
     def __repr__(self):
-        return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acctValue}"
+        return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acct_value}, Broker: {type(self.broker)}"
 
 @dataclass
 class Stock:
