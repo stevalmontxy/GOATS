@@ -14,7 +14,8 @@ from alpaca.trading.requests import GetOptionContractsRequest, LimitOrderRequest
 
 # Local Imports
 from .broker import Broker
-from ..core.core_objects import Account, Stock, Option, Order, LimitOrder, Position
+from ..core.core_objects import Account, Stock, Option, Position
+from ..core.core_objects import Order, LimitOrder, ScheduledOrder
 
 # shelve is handled fully in live script
 # api keys are imported in the live script/testing script
@@ -64,11 +65,23 @@ class AlpacaBroker(Broker):
         df = self.barset_to_df(barset, symbol)
         return df # type: pd.Dataframe
 
-    def get_latest_quote(self, symbol=None, asset=None):
-        '''returns latest quote (bid ask, etc), intake is very flexible
-        for now this function is not in use or fully written'''
-        # if self.quote_source != 'alpaca_rest':
-        raise NotImplementedError # not needed yet, may write later
+    def get_latest_quote(self, asset=None):
+        '''returns latest quote (bid ask, etc), intake is very flexible'''
+        if isinstance(asset, Stock):
+           stock_quote_request = StockLatestQuoteRequest(symbol_or_symbols=asset.symbol) 
+           quote = self.stock_data_client.get_stock_latest_quote(request_params=stock_quote_request)
+        else:
+            option_quote_request = OptionLatestQuoteRequest(symbol_or_symbols=asset.symbol)
+            quote = self.option_data_client.get_option_latest_quote(request_params=option_quote_request)
+        bid = quote[asset.symbol].bid_price
+        ask = quote[asset.symbol].ask_price
+        mid = (bid + ask)/2
+        return bid, ask, mid
+
+    def get_asset_value(self, asset)-> float:
+        ''' gets latest value/mid value for either stock or option'''
+        _, _, mid = self.get_latest_quote(asset)
+        return mid
 
     def get_options_chain(self, underlying_symbol, side, expiration_date=None, 
         min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
