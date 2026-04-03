@@ -167,9 +167,17 @@ class AlpacaBroker(Broker):
         now = dt.datetime.now()
         return now.replace(second=0, microsecond=0) 
 
-    def get_open_hours(self):
-        # will get market open and close time to know if ends early
-        pass
+    def get_open_hours(self, date):
+        '''gets open and close time. if market fully closed, return None'''
+        # if isinstance(date, dt.datetime):
+            # date = date.date() # pardon the readability
+        req = GetCalendarRequest(start=date, end=date)
+        res = self.trade_client.get_calendar(req)
+ 
+        if res:
+            return res[0].open, res[0].close
+        else: # if market closed -> res empty
+            return None, None
 
     def barset_to_df(self, barset, symbol) -> pd.DataFrame:
         '''AlpacaBroker ONLY METHOD'''

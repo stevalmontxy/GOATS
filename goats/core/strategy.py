@@ -135,7 +135,9 @@ class DemoStrat(Strategy):
 
     def check_trigger_event(self):
         # add more trigger conditions as fitting for strat
+        print("demo strat check trigger")
         if self.broker.now().time() == dt.time(15,30) and self.last_ran_closing_event !=self.broker.now().date(): # or early close day near end
+        # if self.broker.now().time() == dt.time(9,38) and self.last_ran_closing_event !=self.broker.now().date(): # for testing
             self.closing_event()
 
     def closing_event(self):
@@ -143,8 +145,8 @@ class DemoStrat(Strategy):
         print("positions rn:", self.portfolio.positions)
         print("orders rn:", self.portfolio.open_orders)
         print("pseudo orders rn:", self.portfolio.pseudo_orders)
-        print("BROKER positions", self.broker.positions)
-        print("BROKER orders", self.broker.orders)
+        print("BROKER positions", self.broker.get_positions())
+        print("BROKER orders", self.broker.get_open_orders())
 
         stock_order = self.stock_helper_funct()
         self.place_order(stock_order)
@@ -168,6 +170,7 @@ class DemoStrat(Strategy):
         return LimitOrder(symbol=opt.symbol, asset=opt, qty=1)
 
     def opt_helper_funct2(self, original_ord):
-        place_time = self.broker.get_closest_open_date(self.broker.now() + dt.timedelta(days=2))
-        place_time += dt.timedelta(hours=15, minutes=15)
+        place_time = self.broker.get_closest_open_date(self.broker.now().date() + dt.timedelta(days=1))
+        place_time = dt.datetime.combine(place_time, dt.time(hour=15, minute=15))
+        # place_time = dt.datetime.now() + dt.timedelta(minutes=5) # for testing
         return ScheduledOrder(symbol=original_ord.symbol, asset=original_ord.asset, qty=-original_ord.qty, place_time=place_time)

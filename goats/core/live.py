@@ -28,20 +28,22 @@ class Live:
 
     def run(self):
         self.strat.portfolio = self.load_shelf_portfolio()
+        _, close_time = self.strat.broker.get_open_hours(dt.date.today())
 
-        now = dt.datetime.now().time()
-        while now < dt.time(4,0):
-            self.strat.monitor_trades()
-            self.strat.check_trigger_event()
-            time.sleep(5)
-        
+        if close_time is not None:
+            while dt.datetime.now() < close_time:
+                self.strat.monitor_trades()
+                self.strat.check_trigger_event()
+                self.save_shelf_portfolio()
+                time.sleep(5) # wait 5 seconds
+                print(self.strat.portfolio)
+
+        self.save_shelf_portfolio(wipe_broker=True)
         # stuff for debugging
         # print(self.strat.portfolio)
         # self.strat.monitor_trades()
         # self.strat.check_trigger_event()
         # time.sleep(5)
-
-        self.save_shelf_portfolio()
 
 
     def load_shelf_portfolio(self):
@@ -62,10 +64,11 @@ class Live:
         return port
 
 
-    def save_shelf_portfolio(self):
+    def save_shelf_portfolio(self, wipe_broker=False):
         '''wipes broker, then saves current strat's port to shelve'''
-        self.strat.portfolio.set_broker(None)
-        
+        if wipe_broker:
+            self.strat.portfolio.set_broker(None)
+
         with shelve.open(self.shelf_path) as db:
             db.update({'portfolio': self.strat.portfolio})
 

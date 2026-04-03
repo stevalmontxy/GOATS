@@ -42,7 +42,7 @@ gmail_pass = os.getenv("GMAIL_PASS")
 if __name__ == "__main__":
     try:
         alpaca_broker = AlpacaBroker(api_key=api_key, secret_key=secret_key, paper=paper)
-        strat = Strategy(alpaca_broker, None)
+        strat = DemoStrat(alpaca_broker, None)
 
         live = Live(strat, gmail_user, gmail_pass)
         live.run()

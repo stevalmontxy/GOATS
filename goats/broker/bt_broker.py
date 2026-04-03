@@ -50,8 +50,7 @@ class BTBroker(Broker):
         raise NotImplementedError # not needed yet, may write later
 
     def get_asset_value(self, asset)-> float:
-        ''' BTBRoker ONLY method
-        gets latest value/mid value for either stock or option
+        ''' gets latest value/mid value for either stock or option
         BEWARE: it assumes that self.current_time time will be in there '''
         if isinstance(asset, Stock):
             if asset.symbol != "AAPL":

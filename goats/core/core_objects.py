@@ -70,7 +70,7 @@ class Portfolio:
                     self.remove_order(o.symbol)
 
         if len(orders_broker) > 0:
-            symbols_port = [p.symbol for p in self.positions]
+            symbols_port = [p.symbol for p in self.open_orders]
             for o in orders_broker[:]:
                 if o.symbol not in symbols_port:
                     self.add_order(o)
@@ -96,7 +96,7 @@ class Portfolio:
         return len(self.open_orders) > 0
 
     def __repr__(self):
-        return f"Portfolio: cash: ${self.cash}, # positions: {len(self.positions)}, Acct value: {self.acct_value}, Broker: {type(self.broker)}"
+        return f"Portfolio: # positions: {len(self.positions)}, # orders: {len(self.open_orders)}, # pseudo orders: {len(self.pseudo_orders)}, Acct value: {self.acct_value}, Broker: {type(self.broker)}"
 
 @dataclass
 class Stock:
