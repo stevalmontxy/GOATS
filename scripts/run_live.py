@@ -8,6 +8,7 @@
 import os
 import sys
 import dotenv
+import traceback
 
 #third party imports
 # none
@@ -47,5 +48,6 @@ if __name__ == "__main__":
         live = Live(strat, gmail_user, gmail_pass)
         live.run()
     except Exception as error:
-        print("~~~~~~~~~~~~~~~Error ocurred!~~~~~~~~~~~~~~~\n", error)
-        live.record_results('misc', error=str(error))
+        full_traceback = traceback.format_exc()
+        print("~~~~~~~~~~~~~~~Error ocurred!~~~~~~~~~~~~~~~\n", full_traceback)
+        live.record_results('misc', error=str(full_traceback))
