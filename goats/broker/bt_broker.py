@@ -11,10 +11,10 @@ from goats.core.core_objects import Order, LimitOrder
 
 
 class BTBroker(Broker):
-    '''BTBroker class keeps its own copy of pos and ords for api calls. 
+    """BTBroker class keeps its own copy of pos and ords for api calls. 
     state memory is stored in portfolio tho
     BTBroker holds the data dfs, but it's passed in via init of the backtest class
-    trade log and return log is held in backtest class, not here '''
+    trade log and return log is held in backtest class, not here"""
     def __init__(self, options_df, underly_df, initial_cash):
         self.positions = [] 
         self.orders = []
@@ -24,16 +24,13 @@ class BTBroker(Broker):
         self.current_time = None # will be type dt.datetime
 
     def set_time(self, time):
-        ''' BTBRoker ONLY METHOD'''
+        """BTBRoker ONLY METHOD"""
         self.current_time = time
-        # self.current_time = self.current_time.tz_localize("America/New_York") # no longer timezone aware
-        # self.current_time = timezone.utc.localize(self.current_time)
 
     # === Fetching Data ===
-
     def get_stock_data(self, symbol, timeframe, num_days) -> pd.DataFrame:
-        '''for now, assume we only have AAPL df for trading on AAPL.
-        ignore symbol param but its there for polymorphism'''
+        """for now, assume we only have AAPL df for trading on AAPL.
+        ignore symbol param but its there for polymorphism"""
         if symbol != "AAPL":
             raise NotImplementedError
         if timeframe != "30Min":
@@ -45,13 +42,13 @@ class BTBroker(Broker):
         return stock_df
 
     def get_latest_quote(self, symbol=None, asset=None):
-        '''returns latest quote (bid ask, etc), intake is very flexible
-        for now this function is not in use or fully written'''
-        raise NotImplementedError # not needed yet, may write later
+        """returns latest quote (bid ask, etc), intake is very flexible
+        for now this function is not in use or fully written"""
+        raise NotImplementedError
 
     def get_asset_value(self, asset)-> float:
-        ''' gets latest value/mid value for either stock or option
-        BEWARE: it assumes that self.current_time time will be in there '''
+        """gets latest value/mid value for either stock or option
+        BEWARE: it assumes that self.current_time time will be in there"""
         if isinstance(asset, Stock):
             if asset.symbol != "AAPL":
                 raise NotImplementedError
@@ -72,11 +69,11 @@ class BTBroker(Broker):
     def get_options_chain(self, underlying_symbol, side, expiration_date=None, 
         min_expiration=None, max_expiration=None, min_strike=None, max_strike=None):
         '''skipping for now, just use get_options_contracts()'''
-        raise NotImplementedError # not needed yet, may write later
+        raise NotImplementedError
 
     def get_options_contracts(self, underlying_symbol, side, expiration_date=None, 
         min_expiration=None, max_expiration=None, min_strike=None, max_strike=None) -> pd.DataFrame:
-        '''method might not be needed for BTBroker'''
+        """method might not be needed for BTBroker"""
         if underlying_symbol != "AAPL":
             raise NotImplementedError
         expiration_date = pd.to_datetime(expiration_date) # need to use pd timestamp type
@@ -92,7 +89,7 @@ class BTBroker(Broker):
         return subset
 
     def get_closest_option(self, option: Option) -> Option:
-        '''find option that best matches desired strike and expiration'''
+        """find option that best matches desired strike and expiration"""
         if option.underlying != "AAPL":
             raise NotImplementedError
 
@@ -114,8 +111,7 @@ class BTBroker(Broker):
         return option
 
     def get_closest_open_date(self, date) -> dt.date:
-        '''given a date, it will return the soonest market open date'''
-        # while date not in self.underly_df.index.date:
+        """given a date, it will return the soonest market open date"""
         if isinstance(date, dt.datetime):
             date = date.date() # i know this is ugly
         date = pd.to_datetime(date) # need to use pd timestamp type
@@ -127,11 +123,9 @@ class BTBroker(Broker):
         return self.current_time
 
     # === Executing Orders ===
-
     def place_order(self, order): # returns res
-        '''works for single order or multiple orders
-        backtest broker takse the "res" and puts it into the trade log'''
-
+        """works for single order or multiple orders
+        backtest broker takse the "res" and puts it into the trade log"""
         preexisting = False
         for p in self.positions[:]:
             if order.asset.symbol == p.symbol:
@@ -162,11 +156,11 @@ class BTBroker(Broker):
         # the way this is coded, currently orders will go straight to becoming positions.
 
     def delta_order_to_orders(self, delta_orders):
-        '''takes over for orderMakerLive function
+        """takes over for orderMakerLive function
         works for single order or multiple orders on same
         example:    delta_orders = [
                         {'strikeDist': 1, 'exprDist': 2, 'side': 'call', 'qty': 1, underlying: "AAPL"},
-                        {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1, underlying: "AAPL"} ]'''
+                        {'strikeDist': -1, 'exprDist': 2, 'side': 'put', 'qty': 1, underlying: "AAPL"} ]"""
         # self.find_closest_option(self)
         # underlying_last = df["[UNDERLYING_LAST]"]
         # goal_strike = underlying_last+strike_dist
@@ -189,8 +183,8 @@ class BTBroker(Broker):
         return res
 
     def close_position(self, symbol=None, asset=None, order_type='market'): # returns res
-        ''' remove an option from positions list, find value at close time, add to trade log
-        works for single order or multiple orders'''
+        """remove an option from positions list, find value at close time, add to trade log
+        works for single order or multiple orders"""
         if symbol is None:
            symbol = asset.symbol 
 
@@ -222,7 +216,6 @@ class BTBroker(Broker):
         return res
 
     # === Querying Portfolio ===
-
     def get_open_orders(self) -> list[Order]:
         return self.orders
 

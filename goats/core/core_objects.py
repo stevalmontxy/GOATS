@@ -1,17 +1,18 @@
+# Standard Imports
 import datetime as dt
-import numpy as np
-import pandas as pd
 from dataclasses import dataclass
 
+# Third Party Imports
+import numpy as np
+import pandas as pd
+
 class Portfolio:
-    '''
-    broker: this is the "brokerage" that will be used to fetch data and stuff
+    """ broker: this is the "brokerage" that will be used to fetch data and stuff
     cash: aka buying power
     acct_value: cash + positions
     positions: list that holds Position objects
     open_orders: list that holds real orders
-    pseudo_orders: list that holds "pseudo" orders- these are things that strat monitors, and submits a real order upon condition
-    '''
+    pseudo_orders: list that holds "pseudo" orders- these are things that strat monitors, and submits a real order upon condition"""
     def __init__(self, broker, initial_cash=10000):
         self.broker = broker
         self.cash = initial_cash
@@ -21,13 +22,13 @@ class Portfolio:
         self.pseudo_orders = []
 
     def add_position(self, pos):
-        '''entry_time should be input of date.today(). if position is being updated, it will be None'''
+        """entry_time should be input of date.today(). if position is being updated, it will be None"""
         self.positions.append(pos)
 
     def remove_position(self, symbol):
-        '''only removes position from portfolio object
+        """only removes position from portfolio object
         removing from broker is handled by stratgey
-        symbol: string'''
+        symbol: string"""
         for i, pos in enumerate(self.positions):
             if pos.symbol == symbol:
                 self.positions.pop(i)
@@ -46,9 +47,9 @@ class Portfolio:
         self.pseudo_orders.append(ord)
 
     def update_portfolio(self):
-        '''will sync portfolio to its current status. works with a brand
+        """will sync portfolio to its current status. works with a brand
         new portfolio as well as a preexisting outdated one
-        the reason to manually check instead of just replacing the whole list is bc local stores some metadata'''
+        the reason to manually check instead of just replacing the whole list is bc local stores some metadata"""
         positions_broker = self.broker.get_positions()
         if self.has_positions:
             symbols_broker = [p.symbol for p in positions_broker]
@@ -100,15 +101,13 @@ class Portfolio:
 
 @dataclass
 class Stock:
-    '''bid/ask/price data handled by position/portfolio'''
+    """bid/ask/price data handled by position/portfolio"""
     symbol: str
-    # self.ID = sym_ID # CURRENTLY NOT IN USE
-    # def __init__(self, symbol, sym_ID=0):
 
 
 @dataclass
 class Option:
-    '''bid/ask/price data handled by position/portfolio'''
+    """bid/ask/price data handled by position/portfolio"""
     strike: float
     expr: dt.date
     side: str # C or P for call/put
@@ -124,7 +123,7 @@ class Option:
 
 @dataclass
 class Position:
-    '''This is an intermediary between portfolio -> position -> option.'''
+    """This is an intermediary between portfolio -> position -> option"""
     symbol: str 
     asset: Stock | Option = None
     qty: float = 1 # + indicates long, - indicates short
@@ -151,30 +150,22 @@ class Account:
 
 @dataclass
 class DeltaOrder:
-    '''not related to primary order class. used as input to create a real order'''
+    """not related to primary order class. used as input to create a real order"""
     pass
 
 
 class Order:
-    '''
-    symbol: symbol - using this, can find link to a position (str)
+    """ symbol: symbol - using this, can find link to a position (str)
     is_stock: whether its stock or not (bool)
     qty: qty (float)
-    pseudo: whether an order is actually in the broker or it has to be manually entered as a limit at the right time (bool)
-    '''
+    pseudo: whether an order is actually in the broker or it has to be manually entered as a limit at the right time (bool)"""
     def __init__(self, symbol=None, asset=None, qty=1, pseudo=False):
         self.symbol = symbol
         self.asset=asset
         self.qty = qty # + indicates long, - indicates short
-        # self.conditional = conditional
-        # self.minimum = minimum
-        # self.pseudo = pseudo # bool, whether it's a "pseudo or no" removed, just storing separate from real ones
 
-    '''check_condition() all of them need to be moved into like strategy or execution or a standalone function.
-    OR leave them here, and just input what is needed into the method?'''
     def check_condition(self, price):
         return false
-        #maybe they should return either an Order or None
 
     @property
     def is_stock(self):
@@ -185,7 +176,7 @@ class Order:
 
 
 class MarketOrder(Order):
-    '''just a market order'''
+    """just a market order"""
     def __init__(self, symbol=None, asset=None, qty=1):
         super().__init__(symbol=symbol, asset=asset, qty=qty)
 
@@ -208,7 +199,7 @@ class ScheduledOrder(Order):
 
 
 class LimitOrder(Order):
-    '''Limit price can be provided, or if None, will automatically get a quote'''
+    """Limit price can be provided, or if None, will automatically get a quote"""
     def __init__(self, symbol=None, asset=None, qty=1, limit_price=None):
         super().__init__(symbol=symbol, asset=asset, qty=qty)
         self.limit_price = limit_price
@@ -267,15 +258,13 @@ class SLTPOrder(Order):
 
 
 class DynamicTrailingOrder(Order):
-    '''
-    this order type is more of an "position exit strategy"
+    """This order type is more of an "position exit strategy"
     it's like a trailing stop where the trailing
     amt is variable based on a few inputs and adjustable params
     a: param for init_trail_pc: it starts as a trailing at this level
     b: param for vol: volatility of price
     c: param for upward_vol: vol in position dir - vol against position dir
-    d: param for rec_price_velo: recent price "velocity" -- I might set this as a function i.e. d = f(rec_price_velo)
-    '''
+    d: param for rec_price_velo: recent price "velocity" -- I might set this as a function i.e. d = f(rec_price_velo)"""
     def __init__(self, symbol, is_stock, qty, a, b, c, d):
         super().__init__(symbol=symbol, is_stock=is_stock, qty=qty, pseudo=True)
         self.a = a

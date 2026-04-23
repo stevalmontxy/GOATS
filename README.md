@@ -1,23 +1,80 @@
 # Glorious Options Automated Trading System (GOATS) Overview
-### Conception and principle
-I have been trading options for a while now, and having previously created algorithmic trading systems for stocks and forex that use technical analysis. However, my coding has improved and I like options, and wanted to go for something more challenging. GOATS is a pet project of mine with custom infrastructure to backtest and deploy more complex strategies designed for options. Instead of running once Here is the big challenge that I have been thinking up for a while now. Essentially I wanted to build my personal trading strategy into an auto every hour or 15 minutes, I want this system to run during market hours, subscribing to live quotes and constantly checking its criteria for entry/exit.
+### Conception and Principle
+I've been trading options for a couple years now, and have previously created algorithmic trading bots for stocks and forex. As my coding and trading have improved, I've decided it's time to go for something more challenging. GOATS is a pet project I made to backtest and rapidly deploy options trading strategies, and for the fun/challenge of it. Unlike my past technical analysis based trading bots, the focus here is on having a directional/vol hypothesis, and trading off that rather than trying to tailor technical indicators or trade arb.
 
-In the past I have utilized backtesting packages and created my own more simple trading systems,and I know there are preexisting systems for backtesting on options, but a big motivation for making this is I think it will be a good exercise of making a larger coding project for me, where I can do some OOP.
+Here are some core features of the system:
+- Rapid deployment
+  - To backtest a new strategy, you just have to write a new Strategy child class (like in some other backtesters). To deploy it, all you have to do is swap it into the live running script and make minimal tweaks, rather than writing a whole separate program
+- Options capability
+  - This system is capable of backtesting and trading stocks and options, while few backtesters can handle options. Having my own system also means no weird workarounds as I can design for what I need and want
+- Constant Monitoring
+  - Unlike my past systems which set a SL or TP order and let it play out, this system is designed for strategies which actively monitor the market and position and choose exit
+- Order "chasing"
+  - Due to the large bid/ask spread of options, limit orders are a must. Paired with the constant monitoring, if an order isn't filled on entry/exit, the system will monitor and adjust the limit price (WIP)
 
-### Current state of the project
-If you're reading this, I am in the middle of a large restructuring. Getting it back to a running system means: running live and backtesting scripts both utilizing the SAME core classes, with only minor differences in how they use the backtesting and live classes. Afterward, my future plans for the project are continual refinement and eventually testing some machine learning stuff.
+### Architecture and Call Heirarchy
+[add architecture diagram and call heirarchy]
 
-### Overall Layout
-[outdated]
-[add architecture diagram and call heirarchy from ipad]
-- One that runs in morning (buying time)
-- one that runs right after buying time (or it could be part of buying time) to confirm successful order fill. or it could keep running until order filled
-- one that runs near end of day (selling time)
-- one that runs end of week to summarize successful and failed script builds. summarized positions and portfolio status
-- one that runs monthly to auto update parameters  
-   
+In both backtesting and live deployment, the system uses:
+- Stock/Option: base asset classes
+- Position: wrapper that holds a Stock or Option object
+- Order - base class for handling execution (contains several child classes)
+- Portfolio: holds positions, orders, and "pseudo orders"
+- Broker: handles interactions between strategy, portfolio, and the outside environment (bt or live)
+  - BtBroker and AlpacaBroker subclass override to handle their environments
+- Strategy: parent class meant to be subclassed
+  - Serves as the commander for most things, though the live script and bt class are higher in command
 
+These can be initialized and a backtest/live can be run from the backtesting notebook or live script
 
+##### Inputs
+- Stock and option data from brokerage or local both parsed into uniform format (PD Dateframe)
+- Data handled by broker class and passed to strat
+##### Outputs
+- Broker classes don't handle output, they only handle data input into strat/port
+- Strat methods can output things up to backtesting class or live script for recording
+  - Backtesting: trades are stored into a list and outputted at the end, also output to file
+  - Live script: trades are logged in .log and occasionally emailed
+
+<!--
+running procedure
+
+BT
+- init
+- setup portfolio
+- declare time
+- loop
+- (see below)
+- end log, make plots
+
+live
+- init
+- get portfolio state everytime
+- maybe compare w expected?
+- (see below)
+
+the "see below" part
+- get price data
+- evaluate
+- make trades
+- log
+
+currently, BT runs on 30 min data. Live updates every 5 seconds rather than using stream
+
+BT Class roles:
+- manage pseudo time
+- run strategy at each time
+- track positions in portfolio
+- track entries/exits -> trade log
+- handle commisions -> log final trade PL
+
+BT broker roles:
+- get data for signals and order prices
+- keep its own 'online' tally of ords & pos for when queried
+- calculate NAV (get_acct_details)
+-->
+
+<!--
 ### Insides of strategy
 [outdated]
 #### Vol and Dir functions (part of sentiment class)
@@ -27,6 +84,7 @@ If you're reading this, I am in the middle of a large restructuring. Getting it 
     - for low levels of dir, the static bias is pretty strong, and the ratio call:put is pretty high. actually it should be whatever dir the long MA is (long term trend)
 
 #### Strategy top level
+[outdated]
 - for low vol, the dir is taken as the call:put ratio. but for higher vol, the ratio gets closer and closer to central.
 - when dir conviction is high, size increases notably. Overall, vol is the scalar while dir is the ratio. but when dir is high, scale will be increased.
 - if dir belief is high, but vol belief is low, maybe shold buy longer DTE options? for high vol belief, lower DTE. for high dir belief, maybe buy lower DTE in the belief dir and longer DTE in opposing.
@@ -37,28 +95,26 @@ If you're reading this, I am in the middle of a large restructuring. Getting it 
 - a lighter deviation could be for outlying vol and dir, instead of buying new ones, always buying the same DTE, it can buy the same position (having shorter DTE) the next day if conviction in something is high
 - TP can be a thing maybe. if we want the bot to run more frequently.
     - yk maybe I do want that. that would be a good benefit of having a bot that can always be checking the stock price n stuff
-
-
+-->
 
 ### Implementation
-Creating new strategies will be as easy as creating a new Strategy child class, and overriding the desired methods. This can easily then run in backtesting, and swapped into the live running setup. For me, my live running setup will be a cheap lightweight linux setup.
+Creating new strategies will be as easy as creating a new Strategy child class, and overriding the desired methods. This can easily then run in backtesting, and swapped into the live running setup. For me, my live running setup is a cheap lightweight linux setup.
 
-
-
-### Setup
-[still in progress] If you want to run this yourself, you will need some files that I have .gitignored away. for backtesting, you will need your own data. I got mine off of OptionsDX. for live implementation, you will need a .env file with your API keys and project root directory. I think the last thing is just to make sure you keep the significant_dates file kept up to date. for live execution, then only one necessary is the one in /src/live. Should be it.
-
-
+### Setup and Installation
+- Historic data: OptionsDX
+- Live running: put api keys in .env
+- Run the following:
+```bash
+chmod +x /home/stevalmontxy/Documents/Github/GOATS/scripts/run_live.sh
+```
 ##### Setup-cron
-
-on archlinux, access with "crontab -e"
-
+On archlinux, access with "crontab -e"
 ```bash
 # CRONTAB runs on laptop's timezone
-45 15 * * 1-5 python /home/stevalmontxy/Documents/GitHub/Options-Backtesting-Python/src/live/run_closing_script.py
-45 15 * * 7 python /home/stevalmontxy/Documents/Programming/tester.py
+30 09 * * 1-5 /[filepath]GOATS/scripts/run_goats.sh >> /home/stevalmontxy/.../goats_live.log 2>&1
 ```
 
+<!--
 ### Sources that helped me
 - systematic trading (robert carver) - overall framework   
 - the leverage space trading model (ralph vince) - helped in sizing   
@@ -67,3 +123,9 @@ on archlinux, access with "crontab -e"
 - option volatility and pricing (sheldon natenberg) - of course  
 - backtesting.py package
 - alpaca API docs
+-->
+
+### Current state of the project
+As of April 2026, the core infrastructure for both backtesting and live execution are fully built. A live paper trading account is actively running a demo strat.
+
+My next steps right now are writing up a strategy -> backtesting -> live testing -> put money in. I expect to continue to refining and developing strategies. Afterward, my future plans for the project are continual refinement and eventually testing some reinforcement learning (PPO) since I think that's interesting.

@@ -1,25 +1,25 @@
-''' so this script is like parallel to run_backtest, 
-        here you choose strat, init broker, then pass it to the Live engine
-  but unlike the backtest, live will fetch the port from shelve
- so you passin strat(alpaca_broker, None)
- it'll detect the None and get its port'''
+"""This script is like parallel to run_backtest, 
+    here you choose strat, init broker, then pass it to the Live engine
+    unlike the backtest, live will fetch the port from shelve
+    so you pass in strat(alpaca_broker, None)
+    it'll detect the None and get its port"""
 
-# standard imports
+# Standard Imports
 import os
 import sys
 import dotenv
 import traceback
 
-#third party imports
+# Third Party Imports
 # none
 
-# prep for local imports
+# Prepare for Local Imports
 current_dir = os.path.dirname(os.path.abspath(__file__))
 root_dir = os.path.abspath(os.path.join(current_dir, ".."))
 os.chdir(current_dir) # for using shelve
 sys.path.insert(1,root_dir) # for imports
 
-# local imports
+# Local Imports
 from goats.core.live import Live
 from goats.core.strategy import Strategy, DemoStrat
 from goats.broker.alpaca_broker import AlpacaBroker

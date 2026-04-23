@@ -1,24 +1,24 @@
-# standard imports
-from email.message import EmailMessage
+# Standard Imports
 import datetime as dt
 import time
 import pytz
+from email.message import EmailMessage
 
-# third party imports
+# Third Party Imports
 import pandas as pd
 import requests as rq
 import shelve
 import smtplib
 import ssl
 
-# local imports
+# Local Imports
 from goats.core.core_objects import Portfolio, Option, Stock, Position, Order, LimitOrder
 from goats.broker.alpaca_broker import AlpacaBroker
 
 
 class Live:
-    '''this holds all the stuff to run the live trading system.
-     in the run_live file, it's very simply now just basically a live.run()'''
+    """this holds all the stuff to run the live trading system.
+     in the run_live file, it's very simply now just basically a live.run()"""
     def __init__(self, strategy, gmail_user, gmail_pass, shelf_path="goats_shelf"):
         self.strat = strategy
         self.gmail_user = gmail_user
@@ -47,10 +47,10 @@ class Live:
 
 
     def load_shelf_portfolio(self):
-        '''Looks in shelf to see if portfolio object exists
+        """Looks in shelf to see if portfolio object exists
         if not, creates one.
         DOES NOT sync w broker at all. just syncs with local shelf port
-        note: shelf portfolio should not hold broker. it will always be added in this func'''
+        note: shelf portfolio should not hold broker. it will always be added in this func"""
         with shelve.open(self.shelf_path) as s:
             port: Portfolio = s.get('portfolio') # using db.get will return None if not found instead of error
 
@@ -65,7 +65,7 @@ class Live:
 
 
     def save_shelf_portfolio(self, wipe_broker=False):
-        '''wipes broker, then saves current strat's port to shelve'''
+        """wipes broker, then saves current strat's port to shelve"""
         if wipe_broker:
             self.strat.portfolio.set_broker(None)
 
@@ -74,10 +74,8 @@ class Live:
 
 
     def record_results(self, status, receipts=None, func=None, error=None):
-        '''
-        Takes status of program end, creates a subject and body, and logs it as well as sending out email
-        record_results(status, symbol=None, qty=None, signal=None, price=None, SL=None, TP=None, unrealizedPL=None)
-        '''
+        """Takes status of program end, creates a subject and body, and logs it as well as sending out email
+        record_results(status, symbol=None, qty=None, signal=None, price=None, SL=None, TP=None, unrealizedPL=None)"""
         current_time = dt.datetime.now(pytz.timezone('US/Eastern')) # get the local time of stock exchange
         current_time = current_time.strftime('%b %d, %Y %H:%M EST')
 
@@ -109,10 +107,7 @@ class Live:
 
 
     def send_email(self, subject, body):
-        '''
-        Sends email to self using user in mysecrets file containing provided info
-        send_email(subject, body)
-        '''
+        """Sends email to self using user in mysecrets file containing provided info"""
         sender = self.gmail_user
         receiver = self.gmail_user # set email recipient as self
 
